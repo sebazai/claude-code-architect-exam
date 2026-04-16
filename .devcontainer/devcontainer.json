@@ -1,0 +1,33 @@
+{
+  "name": "Claude Certified Architect Exam",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+
+  // Install the exam package and copy .mcp.json so Claude Code picks it up
+  "postCreateCommand": "pip install --user -e /workspace/exam-app/ && cp /workspace/exam-app/.mcp.json /workspace/.mcp.json",
+
+  // Forward nothing — exam runs entirely inside Claude Code via MCP
+  "forwardPorts": [],
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+
+  // Run as non-root for security sandboxing
+  "remoteUser": "examuser",
+
+  "mounts": []
+}
