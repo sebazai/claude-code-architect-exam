@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "claude-architect-exam": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_server.server"]
+    }
+  }
+}
