@@ -57,11 +57,10 @@ An interactive MCP-based exam simulator that runs entirely inside Claude Code �
 ### Running locally (requires `mcp[cli]>=1.6`)
 
 ```bash
-cd exam-app
-pip install -e .
+pip install -e exam-app -e evals
 ```
 
-The `.mcp.json` in `exam-app/` registers the server. Open Claude Code **from the `exam-app/` directory** (or symlink `exam-app/.mcp.json` to the repo root) so Claude Code picks it up automatically.
+The `.mcp.json` in `exam-app/` registers both the exam server and the evals server. Open Claude Code **from the `exam-app/` directory** (or symlink `exam-app/.mcp.json` to the repo root) so Claude Code picks them up automatically.
 
 Then in Claude Code chat: **"Start the Claude Certified Architect exam"**
 
@@ -72,8 +71,8 @@ Open the repo in VS Code → **"Reopen in Container"** (requires Docker + Dev Co
 The devcontainer:
 - Builds from `.devcontainer/Dockerfile` (Python 3.12-slim + Node.js + Claude Code CLI)
 - Runs as a non-root user for security sandboxing
-- Auto-installs the `exam-app` package on `postCreateCommand`
-- Bind-mounts `exam-app/.mcp.json` to `/workspace/.mcp.json` so Claude Code finds the MCP server
+- Auto-installs `exam-app` and `evals` packages on `postCreateCommand`
+- Bind-mounts `exam-app/.mcp.json` to `/workspace/.mcp.json` so Claude Code finds both MCP servers
 
 ### Architecture
 
@@ -97,6 +96,61 @@ Key modules:
 - `scoring.py` — linear 100–1000 scale; passing ≥ 720
 
 The session log is readable as MCP resource `exam://session/log`.
+
+## Eval Pipeline (`evals/`)
+
+A prompt evaluation pipeline for the exam simulator's generation and quality-evaluation prompts.
+
+### Architecture
+
+```
+evals/
+├── evals_server/server.py          ← FastMCP server (claude-architect-evals)
+│     runs via MCP sampling — no ANTHROPIC_API_KEY needed
+├── graders/
+│   ├── code_grader.py              ← deterministic structural checks
+│   └── model_grader.py             ← model-based graders (for CLI use)
+├── prompts/variants.py             ← 3 prompt variants (v1/v2/v3)
+├── datasets/
+│   ├── generation_cases.json       ← 10 scenario×domain test cases
+│   └── quality_calibration.json    ← 15 pre-labeled questions (good/mediocre/bad)
+└── run_evals.py                    ← CLI runner (requires ANTHROPIC_API_KEY)
+```
+
+Both the exam server and the evals server are registered in `exam-app/.mcp.json` (bind-mounted as `/workspace/.mcp.json`).
+
+### Running via MCP (recommended — no API key)
+
+Invoke from Claude Code chat:
+
+```
+Run the generation eval for variant v2 with 5 cases
+Run the calibration eval
+Run the full eval comparing v1, v2, and v3
+```
+
+Tools: `list_eval_variants`, `run_generation_eval`, `run_calibration_eval`, `run_full_eval`
+
+### Running via CLI (requires ANTHROPIC_API_KEY)
+
+```bash
+cd evals
+python run_evals.py --eval-type calibration --skip-meta
+python run_evals.py --variants v1,v2 --n-gen 5
+```
+
+### Prompt variants
+
+- `v1` — baseline (current production prompt)
+- `v2` — anti-generic constraint block added
+- `v3` — `<thinking>` chain-of-thought step before JSON generation
+
+### When modifying prompts
+
+After changing `exam-app/mcp_server/evals.py` (generation or quality-eval prompts):
+1. Run `run_calibration_eval` to check quality evaluator accuracy hasn't regressed
+2. Run `run_generation_eval` on all 3 variants to benchmark the change
+3. Compare `mean_quality_score` and `keyword_grounding_rate` across variants
 
 ## Out of Scope
 

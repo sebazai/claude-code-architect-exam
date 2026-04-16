@@ -100,6 +100,19 @@ exam-app/
     ├── scoring.py       # 100–1,000 linear scale, domain breakdown
     └── hooks.py         # PostToolUse-style hooks for logging
 
+evals/
+├── evals_server/
+│   └── server.py        # FastMCP eval server — runs evals via MCP sampling
+├── graders/
+│   ├── code_grader.py   # Deterministic structural checks (no API calls)
+│   └── model_grader.py  # Model-based graders (for CLI use with API key)
+├── prompts/
+│   └── variants.py      # 3 prompt variants: baseline, anti-generic, chain-of-thought
+├── datasets/
+│   ├── generation_cases.json      # 10 scenario×domain test cases
+│   └── quality_calibration.json   # 15 pre-labeled questions (good/mediocre/bad)
+└── run_evals.py         # CLI runner (requires ANTHROPIC_API_KEY)
+
 .devcontainer/
 └── Dockerfile           # Python 3.12-slim + Node.js + Claude Code CLI
 
@@ -127,6 +140,49 @@ This shows each question's generation attempt, quality score, and any retry trig
 | 0 | 100 |
 
 Score is a linear interpolation from 100 (0 correct) to 1000 (60 correct). The `get_results` tool returns your total score, pass/fail status, and accuracy per domain so you can identify weak areas.
+
+## Eval Pipeline
+
+The `evals/` directory contains a prompt evaluation pipeline for the exam simulator's generation and quality-evaluation prompts.
+
+### Two ways to run
+
+**Via MCP (no API key needed)** — uses Claude Code's MCP sampling, just like the exam server:
+
+```
+Run the generation eval for variant v2 with 5 cases
+Run the calibration eval
+Run the full eval comparing v1, v2, and v3
+```
+
+The `claude-architect-evals` MCP server is registered in `.mcp.json` alongside the exam server.
+
+**Via CLI (requires `ANTHROPIC_API_KEY`)**:
+
+```bash
+cd evals
+python run_evals.py --eval-type calibration --skip-meta   # quick calibration only
+python run_evals.py --variants v1,v2 --n-gen 5            # compare two variants
+python run_evals.py --eval-type all                        # full suite, all variants
+```
+
+### What it measures
+
+**Generation eval** — for each of 3 prompt variants, generates questions and grades them:
+- Code grader: structural validity (12 checks — JSON shape, distinct options, explanation length, no "all of the above", etc.)
+- Keyword grounding: does the question reference scenario-specific terms?
+- Quality eval: the existing 1–5 rubric via sampling
+- Meta-grader: independent 5-dimension rubric (scenario grounding, tradeoff reasoning, distractor quality, explanation completeness, single correct answer)
+
+**Calibration eval** — tests whether the quality evaluator correctly scores 15 pre-labeled questions (5 good / 5 mediocre / 5 bad). Reports accuracy by label.
+
+### Prompt variants
+
+| Key | Name | Change |
+|-----|------|--------|
+| `v1` | Baseline | Current production prompt (unchanged) |
+| `v2` | Anti-Generic | Adds explicit constraint requiring scenario-specific grounding |
+| `v3` | Chain-of-Thought | Adds `<thinking>` step before JSON generation |
 
 ## Study Resources
 

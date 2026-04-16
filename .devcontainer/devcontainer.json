@@ -7,8 +7,8 @@
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
 
-  // Install the exam package and copy .mcp.json so Claude Code picks it up
-  "postCreateCommand": "pip install --user -e /workspace/exam-app/ && cp /workspace/exam-app/.mcp.json /workspace/.mcp.json",
+  // Install exam + evals packages and copy .mcp.json (registers both MCP servers)
+  "postCreateCommand": "pip install --user -e /workspace/exam-app/ -e /workspace/evals/ && cp /workspace/exam-app/.mcp.json /workspace/.mcp.json",
 
   // Forward nothing — exam runs entirely inside Claude Code via MCP
   "forwardPorts": [],
