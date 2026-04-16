@@ -1,0 +1,82 @@
+[
+  {
+    "id": "gen_d1_s1",
+    "description": "Domain 1 (Agentic Architecture) × Scenario 1 (Customer Support)",
+    "scenario_id": 1,
+    "domain_id": 1,
+    "scenario_keywords": ["customer", "refund", "escalate", "order"],
+    "notes": "Should produce a question about agentic loop control or tool-ordering enforcement in the support context"
+  },
+  {
+    "id": "gen_d1_s3",
+    "description": "Domain 1 (Agentic Architecture) × Scenario 3 (Multi-Agent Research)",
+    "scenario_id": 3,
+    "domain_id": 1,
+    "scenario_keywords": ["coordinator", "subagent", "search", "synthesis"],
+    "notes": "Should produce a question about multi-agent orchestration patterns or task decomposition"
+  },
+  {
+    "id": "gen_d2_s1",
+    "description": "Domain 2 (Tool Design) × Scenario 1 (Customer Support)",
+    "scenario_id": 1,
+    "domain_id": 2,
+    "scenario_keywords": ["get_customer", "lookup_order", "process_refund", "MCP"],
+    "notes": "Should produce a question about tool descriptions, error handling, or scoped access"
+  },
+  {
+    "id": "gen_d2_s4",
+    "description": "Domain 2 (Tool Design) × Scenario 4 (Developer Productivity)",
+    "scenario_id": 4,
+    "domain_id": 2,
+    "scenario_keywords": ["Read", "Grep", "Glob", "codebase", "MCP"],
+    "notes": "Should produce a question about built-in tool selection or MCP tool design for code exploration"
+  },
+  {
+    "id": "gen_d3_s2",
+    "description": "Domain 3 (Claude Code Config) × Scenario 2 (Code Generation)",
+    "scenario_id": 2,
+    "domain_id": 3,
+    "scenario_keywords": ["CLAUDE.md", "slash command", "plan mode", ".claude"],
+    "notes": "Should produce a question about Claude Code configuration, commands, or plan-vs-execute decision"
+  },
+  {
+    "id": "gen_d3_s5",
+    "description": "Domain 3 (Claude Code Config) × Scenario 5 (CI/CD)",
+    "scenario_id": 5,
+    "domain_id": 3,
+    "scenario_keywords": ["CI", "pipeline", "non-interactive", "pull request"],
+    "notes": "Should produce a question about running Claude Code in automated pipelines"
+  },
+  {
+    "id": "gen_d4_s5",
+    "description": "Domain 4 (Prompt Engineering) × Scenario 5 (CI/CD)",
+    "scenario_id": 5,
+    "domain_id": 4,
+    "scenario_keywords": ["review", "batch", "pull request", "false positive"],
+    "notes": "Should produce a question about batch API tradeoffs or multi-pass review architecture"
+  },
+  {
+    "id": "gen_d4_s6",
+    "description": "Domain 4 (Prompt Engineering) × Scenario 6 (Structured Data Extraction)",
+    "scenario_id": 6,
+    "domain_id": 4,
+    "scenario_keywords": ["extraction", "JSON schema", "structured", "validation"],
+    "notes": "Should produce a question about structured output enforcement or retry-with-feedback"
+  },
+  {
+    "id": "gen_d5_s1",
+    "description": "Domain 5 (Context Management) × Scenario 1 (Customer Support)",
+    "scenario_id": 1,
+    "domain_id": 5,
+    "scenario_keywords": ["escalation", "context", "case", "customer"],
+    "notes": "Should produce a question about escalation triggers, case-facts preservation, or context trimming"
+  },
+  {
+    "id": "gen_d5_s3",
+    "description": "Domain 5 (Context Management) × Scenario 3 (Multi-Agent Research)",
+    "scenario_id": 3,
+    "domain_id": 5,
+    "scenario_keywords": ["timeout", "error", "partial results", "recovery"],
+    "notes": "Should produce a question about structured error propagation or partial-result handling"
+  }
+]

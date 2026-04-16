@@ -1,0 +1,257 @@
+[
+  {
+    "id": "qual_good_001",
+    "label": "good",
+    "expected_score_range": [4, 5],
+    "notes": "From SAMPLE_QUESTIONS[0]. Scenario-specific (named tools), tests programmatic vs prompt enforcement tradeoff, plausible distractors, thorough explanation.",
+    "scenario_name": "Customer Support Resolution Agent",
+    "domain_name": "Agentic Architecture & Orchestration",
+    "question": "Production data shows that in 12% of cases, your agent skips get_customer entirely and calls lookup_order using only the customer's stated name, occasionally leading to misidentified accounts and incorrect refunds. What change would most effectively address this reliability issue?",
+    "options": {
+      "A": "Add a programmatic prerequisite that blocks lookup_order and process_refund calls until get_customer has returned a verified customer ID.",
+      "B": "Enhance the system prompt to state that customer verification via get_customer is mandatory before any order operations.",
+      "C": "Add few-shot examples showing the agent always calling get_customer first, even when customers volunteer order details.",
+      "D": "Implement a routing classifier that analyzes each request and enables only the subset of tools appropriate for that request type."
+    },
+    "correct": "A",
+    "explanation": "When a specific tool sequence is required for critical business logic (like verifying customer identity before processing refunds), programmatic enforcement provides deterministic guarantees that prompt-based approaches cannot. Options B and C rely on probabilistic LLM compliance, which is insufficient when errors have financial consequences. Option D addresses tool availability rather than tool ordering, which is not the actual problem."
+  },
+  {
+    "id": "qual_good_002",
+    "label": "good",
+    "expected_score_range": [4, 5],
+    "notes": "From SAMPLE_QUESTIONS[3]. Tests concrete location knowledge with meaningful distractors; all wrong answers reference real-but-incorrect locations.",
+    "scenario_name": "Code Generation with Claude Code",
+    "domain_name": "Claude Code Configuration & Workflows",
+    "question": "You want to create a custom /review slash command that runs your team's standard code review checklist. This command should be available to every developer when they clone or pull the repository. Where should you create this command file?",
+    "options": {
+      "A": "In the .claude/commands/ directory in the project repository.",
+      "B": "In ~/.claude/commands/ in each developer's home directory.",
+      "C": "In the CLAUDE.md file at the project root.",
+      "D": "In a .claude/config.json file with a commands array."
+    },
+    "correct": "A",
+    "explanation": "Project-scoped custom slash commands should be stored in the .claude/commands/ directory within the repository. These commands are version-controlled and automatically available to all developers when they clone or pull the repo. Option B (~/.claude/commands/) is for personal commands that aren't shared via version control. Option C (CLAUDE.md) is for project instructions and context, not command definitions. Option D describes a configuration mechanism that doesn't exist in Claude Code."
+  },
+  {
+    "id": "qual_good_003",
+    "label": "good",
+    "expected_score_range": [4, 5],
+    "notes": "From SAMPLE_QUESTIONS[6]. Root-cause diagnosis from evidence; distractors blame correct-functioning downstream agents.",
+    "scenario_name": "Multi-Agent Research System",
+    "domain_name": "Agentic Architecture & Orchestration",
+    "question": "After running the system on the topic 'impact of AI on creative industries,' you observe that each subagent completes successfully: the web search agent finds relevant articles, the document analysis agent summarizes papers correctly, and the synthesis agent produces coherent output. However, the final reports cover only visual arts, completely missing music, writing, and film production. When you examine the coordinator's logs, you see it decomposed the topic into three subtasks: 'AI in digital art creation,' 'AI in graphic design,' and 'AI in photography.' What is the most likely root cause?",
+    "options": {
+      "A": "The synthesis agent lacks instructions for identifying coverage gaps in the findings it receives from other agents.",
+      "B": "The coordinator agent's task decomposition is too narrow, resulting in subagent assignments that don't cover all relevant domains of the topic.",
+      "C": "The web search agent's queries are not comprehensive enough and need to be expanded to cover more creative industry sectors.",
+      "D": "The document analysis agent is filtering out sources related to non-visual creative industries due to overly restrictive relevance criteria."
+    },
+    "correct": "B",
+    "explanation": "The coordinator's logs reveal the root cause directly: it decomposed 'creative industries' into only visual arts subtasks (digital art, graphic design, photography), completely omitting music, writing, and film. The subagents executed their assigned tasks correctly — the problem is what they were assigned. Options A, C, and D incorrectly blame downstream agents that are working correctly within their assigned scope."
+  },
+  {
+    "id": "qual_good_004",
+    "label": "good",
+    "expected_score_range": [4, 5],
+    "notes": "From SAMPLE_QUESTIONS[9]. Tests -p flag knowledge; other options name non-existent features which are plausible to someone unfamiliar with the CLI.",
+    "scenario_name": "Claude Code for Continuous Integration",
+    "domain_name": "Claude Code Configuration & Workflows",
+    "question": "Your pipeline script runs claude \"Analyze this pull request for security issues\" but the job hangs indefinitely. Logs indicate Claude Code is waiting for interactive input. What's the correct approach to run Claude Code in an automated pipeline?",
+    "options": {
+      "A": "Add the -p flag: claude -p \"Analyze this pull request for security issues\"",
+      "B": "Set the environment variable CLAUDE_HEADLESS=true before running the command.",
+      "C": "Redirect stdin from /dev/null: claude \"Analyze this pull request for security issues\" < /dev/null",
+      "D": "Add the --batch flag: claude --batch \"Analyze this pull request for security issues\""
+    },
+    "correct": "A",
+    "explanation": "The -p (or --print) flag is the documented way to run Claude Code in non-interactive mode. It processes the prompt, outputs the result to stdout, and exits without waiting for user input — exactly what CI/CD pipelines require. The other options reference non-existent features (CLAUDE_HEADLESS environment variable, --batch flag) or use Unix workarounds that don't properly address Claude Code's command syntax."
+  },
+  {
+    "id": "qual_good_005",
+    "label": "good",
+    "expected_score_range": [4, 5],
+    "notes": "From SAMPLE_QUESTIONS[11]. Multi-pass review rationale; each distractor maps to a specific misconception or misaligned approach.",
+    "scenario_name": "Claude Code for Continuous Integration",
+    "domain_name": "Prompt Engineering & Structured Output",
+    "question": "A pull request modifies 14 files across the stock tracking module. Your single-pass review analyzing all files together produces inconsistent results: detailed feedback for some files but superficial comments for others, obvious bugs missed, and contradictory feedback — flagging a pattern as problematic in one file while approving identical code elsewhere in the same PR. How should you restructure the review?",
+    "options": {
+      "A": "Split into focused passes: analyze each file individually for local issues, then run a separate integration-focused pass examining cross-file data flow.",
+      "B": "Require developers to split large PRs into smaller submissions of 3-4 files before the automated review runs.",
+      "C": "Switch to a higher-tier model with a larger context window to give all 14 files adequate attention in one pass.",
+      "D": "Run three independent review passes on the full PR and only flag issues that appear in at least two of the three runs."
+    },
+    "correct": "A",
+    "explanation": "Splitting reviews into focused passes directly addresses the root cause: attention dilution when processing many files at once. File-by-file analysis ensures consistent depth, while a separate integration pass catches cross-file issues. Option B shifts burden to developers without improving the system. Option C misunderstands that larger context windows don't solve attention quality issues. Option D would actually suppress detection of real bugs by requiring consensus on issues that may only be caught intermittently."
+  },
+  {
+    "id": "qual_med_001",
+    "label": "mediocre",
+    "expected_score_range": [2, 3],
+    "notes": "Factual recall of stop_reason semantics; weakly tied to scenario; distractors B and C are too obviously wrong.",
+    "scenario_name": "Customer Support Resolution Agent",
+    "domain_name": "Agentic Architecture & Orchestration",
+    "question": "In the Customer Support Resolution Agent, how does the agentic loop determine when the model has finished its turn and no further tool calls are pending?",
+    "options": {
+      "A": "The loop checks that stop_reason equals 'end_turn' in the API response.",
+      "B": "The loop counts message exchanges and terminates after reaching 20 turns.",
+      "C": "The loop scans the assistant's text for phrases like 'Is there anything else I can help you with?'",
+      "D": "The loop stops immediately after the agent calls escalate_to_human."
+    },
+    "correct": "A",
+    "explanation": "stop_reason 'end_turn' signals the model finished its response without requesting tool execution. Options B, C, and D are anti-patterns or incorrect."
+  },
+  {
+    "id": "qual_med_002",
+    "label": "mediocre",
+    "expected_score_range": [2, 3],
+    "notes": "Obvious correct answer by elimination; B and D are absurd rather than plausible partial-knowledge mistakes.",
+    "scenario_name": "Code Generation with Claude Code",
+    "domain_name": "Claude Code Configuration & Workflows",
+    "question": "Where should you store team-wide coding conventions so all developers receive them when using Claude Code on the project?",
+    "options": {
+      "A": "In the project-root CLAUDE.md file, committed to the repository.",
+      "B": "In a personal text file saved on one developer's desktop.",
+      "C": "Only in verbal agreements communicated during team stand-ups.",
+      "D": "As a comment in the CI configuration file unrelated to Claude."
+    },
+    "correct": "A",
+    "explanation": "CLAUDE.md at the project root is the correct location for shared project context. The other options are clearly incorrect."
+  },
+  {
+    "id": "qual_med_003",
+    "label": "mediocre",
+    "expected_score_range": [2, 3],
+    "notes": "Multiple defensible correct answers (A and C both address the problem); explanation doesn't explain why B is wrong as a standalone improvement.",
+    "scenario_name": "Multi-Agent Research System",
+    "domain_name": "Tool Design & MCP Integration",
+    "question": "The synthesis agent is making unnecessary web search calls during synthesis, slowing the workflow. What is the best corrective action?",
+    "options": {
+      "A": "Remove web search tool access from the synthesis agent — it should only have tools needed for synthesis.",
+      "B": "Add a caching layer so repeated web searches return stored results instantly.",
+      "C": "Update the synthesis agent's system prompt to clarify it should not call web search during synthesis.",
+      "D": "Rate-limit the web search tool to prevent excessive calls from any single agent."
+    },
+    "correct": "A",
+    "explanation": "Restricting the synthesis agent to only synthesis-relevant tools prevents role bleed. Options C, B, and D address symptoms without solving the design problem of over-provisioned tool access."
+  },
+  {
+    "id": "qual_med_004",
+    "label": "mediocre",
+    "expected_score_range": [2, 3],
+    "notes": "A is correct; explanation only briefly addresses distractors without explaining WHY each is wrong specifically.",
+    "scenario_name": "Customer Support Resolution Agent",
+    "domain_name": "Context Management & Reliability",
+    "question": "After a long billing dispute conversation, the support agent's context window is nearly full. What is the most reliable way to preserve critical case details?",
+    "options": {
+      "A": "Extract key facts (account IDs, dispute amounts, commitments made) into a persistent 'case facts' block outside the summarized history.",
+      "B": "Ask the customer to restart the conversation and re-explain their issue.",
+      "C": "Switch to a model with a larger context window.",
+      "D": "Summarize the full conversation every 10 messages."
+    },
+    "correct": "A",
+    "explanation": "A persistent case facts block prevents loss of critical transactional details. The other options are less effective or harmful."
+  },
+  {
+    "id": "qual_med_005",
+    "label": "mediocre",
+    "expected_score_range": [2, 3],
+    "notes": "Pure factual recall of custom_id; distractors are made-up API fields that would be obvious to anyone who read the docs once.",
+    "scenario_name": "Claude Code for Continuous Integration",
+    "domain_name": "Prompt Engineering & Structured Output",
+    "question": "When using the Message Batches API, what field links each batch response back to its original request?",
+    "options": {
+      "A": "request_id",
+      "B": "custom_id",
+      "C": "correlation_token",
+      "D": "message_key"
+    },
+    "correct": "B",
+    "explanation": "The custom_id field is set per-request and echoed in the response for correlation. The other field names do not exist in the Batches API."
+  },
+  {
+    "id": "qual_bad_001",
+    "label": "bad",
+    "expected_score_range": [1, 2],
+    "notes": "Purely generic Claude API definition question with no scenario tie. Could appear in any introductory tutorial.",
+    "scenario_name": "Customer Support Resolution Agent",
+    "domain_name": "Agentic Architecture & Orchestration",
+    "question": "What does stop_reason 'end_turn' indicate in the Claude API?",
+    "options": {
+      "A": "The model has completed its response and is not requesting any tool calls.",
+      "B": "The conversation has reached the maximum number of allowed turns.",
+      "C": "The user has ended the session.",
+      "D": "An error occurred during processing."
+    },
+    "correct": "A",
+    "explanation": "stop_reason 'end_turn' means the model finished its response naturally without requesting tool execution. The other options are incorrect descriptions of what end_turn means."
+  },
+  {
+    "id": "qual_bad_002",
+    "label": "bad",
+    "expected_score_range": [1, 2],
+    "notes": "Distractors A and B are joke answers, making C obviously correct by elimination. No real tradeoff tested.",
+    "scenario_name": "Multi-Agent Research System",
+    "domain_name": "Agentic Architecture & Orchestration",
+    "question": "For critical business logic that must always execute in a specific sequence, which approach provides the strongest reliability guarantee?",
+    "options": {
+      "A": "Write a poem about sequential execution and include it in the system prompt.",
+      "B": "Hope the model figures out the right sequence from context clues.",
+      "C": "Programmatic enforcement via code that gates subsequent operations on prior ones completing successfully.",
+      "D": "Use a different font in all API documentation to make the instructions more memorable."
+    },
+    "correct": "C",
+    "explanation": "Programmatic enforcement provides deterministic guarantees. The other options are clearly incorrect."
+  },
+  {
+    "id": "qual_bad_003",
+    "label": "bad",
+    "expected_score_range": [1, 2],
+    "notes": "'All of the above' distractor; question tests taxonomy recall not tradeoff reasoning; C is actually false (JSON schema doesn't prevent semantic errors) making the question partially wrong.",
+    "scenario_name": "Structured Data Extraction",
+    "domain_name": "Prompt Engineering & Structured Output",
+    "question": "What are the benefits of enforcing output through a JSON schema with tool_use?",
+    "options": {
+      "A": "Eliminates JSON syntax errors in the output.",
+      "B": "Guarantees the model calls the tool instead of returning plain text (when using tool_choice 'any').",
+      "C": "Prevents semantic errors such as values that don't sum correctly.",
+      "D": "All of the above."
+    },
+    "correct": "A",
+    "explanation": "JSON schema eliminates syntax errors. B requires tool_choice 'any' separately. C is false — schemas don't prevent semantic errors. D is therefore wrong."
+  },
+  {
+    "id": "qual_bad_004",
+    "label": "bad",
+    "expected_score_range": [1, 2],
+    "notes": "The question text telegraphs the answer: 'PATH-BASED, AUTOMATIC, CONVENTION loading' maps directly to option B. Self-answering.",
+    "scenario_name": "Code Generation with Claude Code",
+    "domain_name": "Claude Code Configuration & Workflows",
+    "question": "You want Claude Code to AUTOMATICALLY apply different coding conventions based on FILE PATHS, without manual invocation. What mechanism provides PATH-BASED, AUTOMATIC, CONDITIONAL convention loading?",
+    "options": {
+      "A": "A single root CLAUDE.md file listing all conventions under section headers.",
+      "B": "Rule files in .claude/rules/ with YAML frontmatter specifying glob path patterns.",
+      "C": "Manually invoking different skill files before each task.",
+      "D": "Separate CLAUDE.md files placed in each individual subdirectory."
+    },
+    "correct": "B",
+    "explanation": "Path-based rule files provide exactly the path-based automatic conditional loading described in the question. The question's phrasing makes B the obvious choice."
+  },
+  {
+    "id": "qual_bad_005",
+    "label": "bad",
+    "expected_score_range": [1, 2],
+    "notes": "Out-of-scope topic (RAG/embeddings are explicitly excluded from exam). Meta-knowledge question rather than practical architecture judgment.",
+    "scenario_name": "Structured Data Extraction",
+    "domain_name": "Prompt Engineering & Structured Output",
+    "question": "When building a RAG (Retrieval Augmented Generation) pipeline with Claude for the data extraction system, what is the optimal embedding chunk size to balance retrieval precision and context richness?",
+    "options": {
+      "A": "256 tokens for maximum precision",
+      "B": "512 tokens as a balanced default",
+      "C": "1024 tokens for richer context",
+      "D": "RAG and embeddings are explicitly out of scope for the Claude Certified Architect exam"
+    },
+    "correct": "D",
+    "explanation": "The Claude Certified Architect exam explicitly excludes RAG, embeddings, and vector databases. This question tests whether candidates recognise the scope boundary, not practical RAG architecture."
+  }
+]
