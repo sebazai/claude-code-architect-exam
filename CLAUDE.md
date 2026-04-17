@@ -62,7 +62,7 @@ pip install -e exam-app -e evals
 
 The `.mcp.json` in `exam-app/` registers both the exam server and the evals server. Open Claude Code **from the `exam-app/` directory** (or symlink `exam-app/.mcp.json` to the repo root) so Claude Code picks them up automatically.
 
-Then in Claude Code chat: **"Start the Claude Certified Architect exam"**
+Then in Claude Code chat: **"Start the Claude Certified Architect exam"** (full: 60 questions / 120 min) or ask to use **`start_exam_mini`** for a shorter run (20 questions / 40 min, 4 scenarios × 5 questions).
 
 ### Running in the devcontainer (recommended — OS-agnostic, sandboxed)
 
@@ -81,7 +81,8 @@ Claude Code (host/client)
   │  connected to
   ▼
 exam-app/mcp_server/server.py   ← FastMCP server
-  ├── start_exam                → picks 4 random scenarios, initialises session
+  ├── start_exam                → full exam: 4 random scenarios, 60 Q (15 per scenario), 120 min active time
+  ├── start_exam_mini           → same flow: 4 scenarios × 5 Q = 20 total; 40 min active time (linear scale vs full)
   ├── get_next_question         → agentic loop: generate → quality eval → retry if score < 3
   ├── submit_answer             → records answer + user thinking time; returns verdict + explanation
   ├── get_results               → scaled score 100–1000, domain breakdown, per-question summary
