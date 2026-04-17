@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import subprocess
 from datetime import datetime, timezone
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -123,17 +124,36 @@ def _get_few_shot_examples(domain_id: int, n: int = 2) -> list[dict]:
     return result
 
 
+def _claude_cli(prompt: str, system_prompt: str) -> str:
+    """Fallback: call the claude CLI non-interactively when MCP sampling is unavailable."""
+    result = subprocess.run(
+        ["claude", "-p", prompt, "--system-prompt", system_prompt],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        stdin=subprocess.DEVNULL,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"claude CLI failed: {result.stderr[:200]}")
+    return result.stdout.strip()
+
+
+async def _sample_text(_ctx: Context, prompt: str, system_prompt: str, _max_tokens: int) -> str:
+    """Generate text via claude CLI (MCP sampling not available in this environment)."""
+    return _claude_cli(prompt, system_prompt)
+
+
 async def _sample_question(ctx: Context, prompt: str) -> dict:
     """Make a sampling request to generate a question. Returns parsed question dict."""
-    result = await ctx.sample(prompt, system_prompt=GENERATION_SYSTEM, max_tokens=1500)
-    return parse_question(result.text)
+    text = await _sample_text(ctx, prompt, GENERATION_SYSTEM, 1500)
+    return parse_question(text)
 
 
 async def _sample_quality(ctx: Context, question: dict) -> QualityResult:
     """Make a sampling request to evaluate question quality."""
     prompt = build_quality_prompt(question)
-    result = await ctx.sample(prompt, system_prompt=QUALITY_EVAL_SYSTEM, max_tokens=400)
-    return parse_quality_result(result.text)
+    text = await _sample_text(ctx, prompt, QUALITY_EVAL_SYSTEM, 400)
+    return parse_quality_result(text)
 
 
 async def _generate_question_with_retry(

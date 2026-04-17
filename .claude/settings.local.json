@@ -12,7 +12,14 @@
       "Bash(python3 -c \"import fitz\")",
       "Bash(pip list *)",
       "Bash(pip install *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "mcp__claude-architect-exam__start_exam",
+      "mcp__claude-architect-exam__get_next_question",
+      "Bash(python -c \"from mcp.server.fastmcp import Context; import inspect; print\\(inspect.signature\\(Context.sample\\)\\)\")",
+      "Bash(python -c \"import mcp; print\\(mcp.__version__\\)\")",
+      "Bash(python -c \"from mcp.server.fastmcp import Context; print\\([m for m in dir\\(Context\\) if not m.startswith\\('__'\\)]\\)\")",
+      "Bash(pip show *)",
+      "mcp__claude-architect-exam__submit_answer"
     ]
   },
   "enableAllProjectMcpServers": true,
