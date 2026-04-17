@@ -48,6 +48,8 @@ def _base_format_args(scenario: dict, domain: dict, few_shot_examples: list[dict
         key_concepts="\n".join(f"• {kc}" for kc in domain["key_concepts"]),
         anti_patterns="\n".join(f"• {ap}" for ap in domain.get("anti_patterns", [])),
         few_shot_examples=_format_examples(few_shot_examples),
+        target_concept_block="",
+        already_tested_block="",
         retry_feedback=_format_feedback(retry_feedback),
     )
 

@@ -88,14 +88,30 @@ def _get_few_shot_examples(domain_id: int, n: int = 2) -> list[dict]:
 
 import re
 
+from mcp import types as mcp_types
+
 
 def _strip_thinking(text: str) -> str:
     return re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL).strip()
 
 
+def _make_message(prompt: str) -> list[mcp_types.SamplingMessage]:
+    return [mcp_types.SamplingMessage(
+        role="user",
+        content=mcp_types.TextContent(type="text", text=prompt),
+    )]
+
+
+def _result_text(result: mcp_types.CreateMessageResult) -> str:
+    content = result.content
+    if hasattr(content, "text"):
+        return content.text
+    return str(content)
+
+
 async def _sample_generation(ctx: Context, prompt: str, system: str) -> tuple[dict | None, str]:
-    result = await ctx.sample(prompt, system_prompt=system, max_tokens=1500)
-    raw = result.text
+    result = await ctx.session.create_message(_make_message(prompt), system_prompt=system, max_tokens=1500)
+    raw = _result_text(result)
     cleaned = _strip_thinking(raw)
     try:
         return parse_question(cleaned), raw
@@ -106,8 +122,8 @@ async def _sample_generation(ctx: Context, prompt: str, system: str) -> tuple[di
 
 async def _sample_quality_eval(ctx: Context, question: dict) -> dict:
     prompt = build_quality_prompt(question)
-    result = await ctx.sample(prompt, system_prompt=QUALITY_EVAL_SYSTEM, max_tokens=400)
-    r = parse_quality_result(result.text)
+    result = await ctx.session.create_message(_make_message(prompt), system_prompt=QUALITY_EVAL_SYSTEM, max_tokens=400)
+    r = parse_quality_result(_result_text(result))
     return {"score": r.score, "feedback": r.feedback, "criteria_met": r.criteria_met, "criteria_failed": r.criteria_failed}
 
 
@@ -122,10 +138,10 @@ async def _sample_meta_grade(ctx: Context, question: dict) -> dict:
         f"Correct: {question.get('correct', '')}\n"
         f"Explanation: {question.get('explanation', '')}"
     )
-    result = await ctx.sample(prompt, system_prompt=META_GRADER_SYSTEM, max_tokens=350)
+    result = await ctx.session.create_message(_make_message(prompt), system_prompt=META_GRADER_SYSTEM, max_tokens=350)
     try:
         import json as _json
-        text = re.sub(r"```(?:json)?\s*", "", result.text).strip()
+        text = re.sub(r"```(?:json)?\s*", "", _result_text(result)).strip()
         match = re.search(r"\{.*\}", text, re.DOTALL)
         data = _json.loads(match.group()) if match else {}
         data["score"] = round(float(data.get("score", 0)), 2)
@@ -148,10 +164,10 @@ async def _sample_audit(ctx: Context, question: dict, eval_result: dict) -> dict
         f"Criteria met: {eval_result.get('criteria_met', [])}\n"
         f"Criteria failed: {eval_result.get('criteria_failed', [])}"
     )
-    result = await ctx.sample(prompt, system_prompt=CALIBRATION_AUDIT_SYSTEM, max_tokens=200)
+    result = await ctx.session.create_message(_make_message(prompt), system_prompt=CALIBRATION_AUDIT_SYSTEM, max_tokens=200)
     try:
         import json as _json
-        text = re.sub(r"```(?:json)?\s*", "", result.text).strip()
+        text = re.sub(r"```(?:json)?\s*", "", _result_text(result)).strip()
         match = re.search(r"\{.*\}", text, re.DOTALL)
         return _json.loads(match.group()) if match else {}
     except Exception as exc:

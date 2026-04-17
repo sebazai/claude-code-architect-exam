@@ -23,7 +23,11 @@
       "Bash(python -c \"from exam_app.mcp_server.server import mcp; print\\('OK'\\)\")",
       "Bash(python -m py_compile exam-app/mcp_server/server.py)",
       "Bash(python -m py_compile exam-app/mcp_server/session.py)",
-      "mcp__claude-architect-exam__start_exam_mini"
+      "mcp__claude-architect-exam__start_exam_mini",
+      "mcp__claude-architect-evals__run_generation_eval",
+      "Bash(python -c \"from mcp.server.fastmcp import Context; print\\(dir\\(Context\\)\\)\")",
+      "Bash(python -c \"import mcp; import inspect; import mcp.server.fastmcp as fm; print\\(inspect.getfile\\(fm\\)\\)\")",
+      "Bash(find / -path \"*/mcp/server/fastmcp*\" -name \"*.py\")"
     ]
   },
   "enableAllProjectMcpServers": true,
