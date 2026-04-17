@@ -31,28 +31,32 @@ MAX_RETRIES = 2         # Max regeneration attempts before accepting best result
 
 QUALITY_EVAL_SYSTEM = (
     "You are an expert evaluator for the Claude Certified Architect – Foundations "
-    "certification exam. Evaluate exam questions for quality and alignment with the "
-    "exam's standards. Respond ONLY with valid JSON — no prose, no markdown fences."
+    "certification exam. This is a single, stateless invocation. You have no prior "
+    "conversation history and must evaluate based solely on the question content "
+    "provided in this prompt — do not reference or assume any prior evaluations. "
+    "Evaluate exam questions for quality and alignment with the exam's standards. "
+    "Respond ONLY with valid JSON — no prose, no markdown fences."
 )
 
 QUALITY_EVAL_TEMPLATE = """\
-Evaluate this exam question on a scale of 1-5 against the criteria below.
+Evaluate this exam question against the five scoring dimensions below.
 
-CRITERIA:
-1 = Poor: Generic (not tied to scenario), or distractors are obviously wrong
-2 = Below average: Vague, or multiple plausible correct answers exist
-3 = Acceptable: Scenario-specific, one clear correct answer, plausible distractors
-4 = Good: Tests practical judgment; all distractors would fool a candidate with incomplete knowledge
-5 = Excellent: Matches sample-question quality — requires tradeoff reasoning; explanation distinguishes correct from each distractor
+<scoring_dimensions>
+Assess each dimension independently, then count how many are fully met to derive the score.
 
-CHECKLIST (assess each):
-- Is the question specific to the provided scenario context (not generic Claude knowledge)?
-- Is there exactly ONE clearly correct answer?
-- Are all three distractors plausible to someone with incomplete knowledge?
-- Does it require practical judgment / tradeoff reasoning (not pure memorization)?
-- Is the explanation thorough: explains WHY the correct answer is right AND why each distractor is wrong?
+1. scenario_grounding       — References named tools, metrics, or constraints from THIS scenario
+                              (not generic Claude knowledge applicable to any project)
+2. tradeoff_reasoning       — Answering requires weighing design alternatives, not recalling a fact
+3. distractor_quality       — All 3 wrong answers are plausible to a candidate with incomplete knowledge;
+                              each exploits a distinct anti-pattern
+4. explanation_completeness — States WHY the correct answer is right AND why each distractor is wrong
+5. single_correct_answer    — Exactly ONE answer is clearly the best; no ambiguity
 
-QUESTION TO EVALUATE:
+SCORE (number of fully-met dimensions):
+1 = 0–1 met   2 = 2 met   3 = 3 met   4 = 4 met   5 = all 5 met
+</scoring_dimensions>
+
+<question_to_evaluate>
 Scenario: {scenario_name}
 Domain: {domain_name}
 
@@ -65,9 +69,10 @@ D) {option_d}
 
 Correct: {correct}
 Explanation: {explanation}
+</question_to_evaluate>
 
 Respond with ONLY this JSON (no markdown, no extra text):
-{{"score": <1-5>, "feedback": "<one-sentence issue summary if score < 4, else 'Meets quality bar'>", "criteria_met": ["..."], "criteria_failed": ["..."]}}
+{{"score": <1-5>, "feedback": "<one-sentence issue summary if score < 4, else 'Meets quality bar'>", "dimensions": {{"scenario_grounding": <0|1>, "tradeoff_reasoning": <0|1>, "distractor_quality": <0|1>, "explanation_completeness": <0|1>, "single_correct_answer": <0|1>}}, "criteria_met": ["<dimension names that scored 1>"], "criteria_failed": ["<dimension names that scored 0>"]}}
 """
 
 # ---------------------------------------------------------------------------
@@ -77,19 +82,24 @@ Respond with ONLY this JSON (no markdown, no extra text):
 GENERATION_SYSTEM = (
     "You are generating scenario-based multiple-choice exam questions for the "
     "Claude Certified Architect – Foundations certification. "
+    "This is a single, stateless invocation. You have no prior conversation history "
+    "and must rely exclusively on the content provided in this prompt — "
+    "do not infer, assume, or recall information from any previous interaction. "
     "Questions must require practical judgment about Claude architecture tradeoffs — "
     "not factual recall. Respond ONLY with valid JSON."
 )
 
 GENERATION_TEMPLATE = """\
 Generate ONE new multiple-choice exam question grounded in the scenario and domain below.
+All inputs needed to complete this task are contained within this prompt.
 
-═══ SCENARIO CONTEXT ═══
+<scenario_context>
 {scenario_name}
 
 {scenario_description}
+</scenario_context>
 
-═══ TARGET DOMAIN: {domain_name} ═══
+<target_domain name="{domain_name}">
 
 Key task statements for this domain:
 {task_statements}
@@ -99,15 +109,17 @@ Key concepts candidates must understand:
 
 Common anti-patterns that distractors should exploit:
 {anti_patterns}
+</target_domain>
 
-═══ STYLE REFERENCE ═══
+<style_reference>
 Study these examples to understand QUESTION STRUCTURE and REASONING DEPTH only.
 Do NOT reuse their root causes, correct answers, or anti-patterns.
 Your question must test a concept not present in any example below.
 
 {few_shot_examples}
+</style_reference>
 {target_concept_block}{already_tested_block}
-═══ REQUIREMENTS ═══
+<requirements>
 - Ground the question in the scenario above (reference specific tools, metrics, or constraints from it)
 - Test practical judgment about a TRADEOFF — not a fact
 - Exactly 4 options (A, B, C, D); ONE correct
@@ -122,6 +134,7 @@ Your question must test a concept not present in any example below.
   modes at scale, or choosing between competing design patterns. Avoid questions answerable by recall alone.
 - Vary the letter of the correct answer. Do NOT default to placing the correct answer at option A.
   Use B, C, and D as frequently as A across generated questions.
+</requirements>
 
 Respond with ONLY this JSON (no markdown, no extra text):
 {{
@@ -189,10 +202,11 @@ def build_generation_prompt(
 
     if target_concept:
         target_concept_block = (
-            f"\n═══ TARGET CONCEPT ═══\n"
+            f"\n<target_concept>\n"
             f"Build your question around this specific concept:\n"
             f"  {target_concept}\n\n"
             f"Your scenario symptom, correct answer, and distractors must all be grounded in this concept.\n"
+            f"</target_concept>\n"
         )
     else:
         target_concept_block = ""
@@ -200,10 +214,13 @@ def build_generation_prompt(
     if already_tested:
         tested_lines = "\n".join(f"• {c}" for c in already_tested)
         already_tested_block = (
-            f"\n═══ DO NOT RE-TEST ═══\n"
-            f"These concepts have already been covered in this exam session.\n"
-            f"Do NOT test any of them, even indirectly:\n"
+            f"\n<exclusion_list>\n"
+            f"The following concepts have already appeared in this exam session. "
+            f"Generating a question about any of these — directly or through closely related sub-concepts — "
+            f"would produce an invalid question. You MUST select a different concept.\n\n"
+            f"Already tested:\n"
             f"{tested_lines}\n"
+            f"</exclusion_list>\n"
         )
     else:
         already_tested_block = ""
@@ -211,7 +228,12 @@ def build_generation_prompt(
     feedback_block = ""
     if retry_feedback:
         feedback_block = (
-            f"\n\n⚠️  PREVIOUS ATTEMPT WAS REJECTED — please address these issues:\n{retry_feedback}"
+            f"\n\n<retry_feedback>\n"
+            f"Your previous attempt did not meet the quality bar. "
+            f"The issues listed below must be resolved. "
+            f"Do not reproduce the same question stem, options, or concept from the previous attempt.\n\n"
+            f"{retry_feedback}\n"
+            f"</retry_feedback>"
         )
 
     return GENERATION_TEMPLATE.format(

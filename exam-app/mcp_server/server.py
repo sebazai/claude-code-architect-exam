@@ -136,7 +136,7 @@ def _get_few_shot_examples(domain_id: int, n: int = 2) -> list[dict]:
 def _claude_cli(prompt: str, system_prompt: str) -> str:
     """Call the Claude Code ``claude`` CLI non-interactively for one completion."""
     result = subprocess.run(
-        ["claude", "-p", prompt, "--system-prompt", system_prompt],
+        ["claude", "-p", prompt, "--system-prompt", system_prompt, "--output-format", "json"],
         capture_output=True,
         text=True,
         timeout=120,
@@ -144,7 +144,11 @@ def _claude_cli(prompt: str, system_prompt: str) -> str:
     )
     if result.returncode != 0:
         raise RuntimeError(f"claude CLI failed: {result.stderr[:200]}")
-    return result.stdout.strip()
+    try:
+        envelope = json.loads(result.stdout)
+        return envelope.get("result", result.stdout).strip()
+    except json.JSONDecodeError:
+        return result.stdout.strip()
 
 
 async def _sample_text(_ctx: Context, prompt: str, system_prompt: str, _max_tokens: int) -> str:

@@ -36,7 +36,14 @@ def _format_examples(few_shot_examples: list[dict]) -> str:
 def _format_feedback(retry_feedback: str) -> str:
     if not retry_feedback:
         return ""
-    return f"\n\n⚠️  PREVIOUS ATTEMPT WAS REJECTED — please address these issues:\n{retry_feedback}"
+    return (
+        f"\n\n<retry_feedback>\n"
+        f"Your previous attempt did not meet the quality bar. "
+        f"The issues listed below must be resolved. "
+        f"Do not reproduce the same question stem, options, or concept from the previous attempt.\n\n"
+        f"{retry_feedback}\n"
+        f"</retry_feedback>"
+    )
 
 
 def _base_format_args(scenario: dict, domain: dict, few_shot_examples: list[dict], retry_feedback: str) -> dict:
@@ -60,19 +67,20 @@ def _base_format_args(scenario: dict, domain: dict, few_shot_examples: list[dict
 # ---------------------------------------------------------------------------
 
 _ANTI_GENERIC_BLOCK = """\
-═══ ANTI-GENERIC CONSTRAINT ═══
+<anti_generic_constraint>
 Your question MUST be answerable differently depending on this specific scenario.
 Reference at least ONE of:
   • Named tools from this scenario (e.g., if the scenario mentions process_refund, use it)
   • Specific SLAs, metrics, or numbers stated in the scenario description
   • Named agents, subsystems, or workflow steps unique to this scenario
 A question that could appear in a generic Claude tutorial without modification → REJECT and rewrite.
+</anti_generic_constraint>
 
 """
 
 GENERATION_TEMPLATE_V2 = GENERATION_TEMPLATE.replace(
-    "═══ REQUIREMENTS ═══",
-    _ANTI_GENERIC_BLOCK + "═══ REQUIREMENTS ═══",
+    "<requirements>",
+    _ANTI_GENERIC_BLOCK + "<requirements>",
 )
 
 
