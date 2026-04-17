@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from mcp_server import server as srv
+from mcp_server.exam_content import MINI_EXAM_DURATION_SECONDS, MINI_QUESTIONS_PER_SCENARIO, MINI_TOTAL_QUESTIONS
 from mcp_server.session import get_session, reset_session
 
 
@@ -47,7 +48,23 @@ async def test_get_next_question_requires_session(mock_ctx):
     reset_session()
     out = json.loads(await srv.get_next_question(mock_ctx))
     assert "error" in out
-    assert "start_exam" in out["error"].lower()
+    err = out["error"].lower()
+    assert "start_exam" in err and "mini" in err
+
+
+@pytest.mark.asyncio
+async def test_start_exam_mini_session_shape():
+    with patch.object(srv.random, "sample", return_value=[1, 2, 3, 4]):
+        out = json.loads(await srv.start_exam_mini())
+    s = get_session()
+    assert out["exam_mode"] == "mini"
+    assert out["total_questions"] == MINI_TOTAL_QUESTIONS
+    assert out["questions_per_scenario"] == MINI_QUESTIONS_PER_SCENARIO
+    assert out["exam_duration_minutes"] == MINI_EXAM_DURATION_SECONDS // 60
+    assert s.exam_mode == "mini"
+    assert s.total_questions == MINI_TOTAL_QUESTIONS
+    assert s.questions_per_scenario == MINI_QUESTIONS_PER_SCENARIO
+    assert s.exam_duration_seconds == MINI_EXAM_DURATION_SECONDS
 
 
 @pytest.mark.asyncio
@@ -117,12 +134,13 @@ async def test_slow_prefetch_is_awaited_before_q2(mock_ctx):
 async def test_no_prefetch_after_final_question(mock_ctx):
     with patch.object(srv.random, "sample", return_value=[1, 2, 3, 4]):
         await _start_exam_fixed_scenarios()
+    session = get_session()
+    session.total_questions = 2
     gen = AsyncMock(side_effect=[(_fake_question(1), 5), (_fake_question(2), 5)])
-    with patch.object(srv, "TOTAL_QUESTIONS", 2):
-        with patch.object(srv, "_generate_question_with_retry", gen):
-            await srv.get_next_question(mock_ctx)
-            await srv.get_next_question(mock_ctx)
-            out = json.loads(await srv.get_next_question(mock_ctx))
+    with patch.object(srv, "_generate_question_with_retry", gen):
+        await srv.get_next_question(mock_ctx)
+        await srv.get_next_question(mock_ctx)
+        out = json.loads(await srv.get_next_question(mock_ctx))
     assert "error" in out
     session = get_session()
     assert session.prefetch_task is None

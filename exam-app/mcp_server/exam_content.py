@@ -845,6 +845,12 @@ SAMPLE_QUESTIONS: list[dict] = [
 TOTAL_QUESTIONS = 60
 QUESTIONS_PER_SCENARIO = 15  # 4 scenarios × 15 = 60
 EXAM_DURATION_SECONDS = 7200  # 120 minutes
+
+# Short practice exam: same 4-scenario flow, 5 questions per scenario (20 total), time scaled linearly vs full exam
+MINI_TOTAL_QUESTIONS = 20
+MINI_QUESTIONS_PER_SCENARIO = 5  # 4 scenarios × 5 = 20
+MINI_EXAM_DURATION_SECONDS = int(EXAM_DURATION_SECONDS * MINI_TOTAL_QUESTIONS / TOTAL_QUESTIONS)
+
 PASSING_SCORE = 720
 SCORE_MIN = 100
 SCORE_MAX = 1000

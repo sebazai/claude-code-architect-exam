@@ -5,13 +5,14 @@ Runs inside Claude Code. All LLM inference is delegated back to the Claude Code
 host via MCP Sampling (ctx.sample()) — no ANTHROPIC_API_KEY required.
 
 Exam structure:
-  - 60 questions · 120 minutes user-active time
+  - Full: 60 questions · 120 minutes user-active time · 4 scenarios × 15 questions
+  - Mini: 20 questions · 40 minutes · 4 scenarios × 5 questions (same flow, linear time scale)
   - 4 scenarios randomly selected from up to 13
-  - 15 questions per scenario
   - Score 100–1,000  (passing ≥ 720)
 
 Tool flow:
   start_exam → get_next_question (×60) → submit_answer (×60) → get_results
+  start_exam_mini → get_next_question (×20) → submit_answer (×20) → get_results
 """
 from __future__ import annotations
 
@@ -37,6 +38,10 @@ from .evals import (
 )
 from .exam_content import (
     DOMAINS,
+    EXAM_DURATION_SECONDS,
+    MINI_EXAM_DURATION_SECONDS,
+    MINI_QUESTIONS_PER_SCENARIO,
+    MINI_TOTAL_QUESTIONS,
     SAMPLE_QUESTIONS,
     SCENARIOS,
     SCENARIOS_PER_EXAM,
@@ -61,19 +66,20 @@ mcp = FastMCP(
 This MCP server runs the Claude Certified Architect – Foundations practice exam.
 
 EXAM RULES:
-• 60 questions across 4 randomly-selected scenarios (15 questions each)
+• Full exam: start_exam — 60 questions, 4 scenarios × 15 questions, 120 minutes user-active time
+• Mini exam: start_exam_mini — 20 questions, 4 scenarios × 5 questions, 40 minutes (same flow, scaled time)
 • Scenarios drawn from a pool of up to 13 (real exam may include scenarios outside the official guide's 6)
-• 120 minutes of user-active time (generation and evaluation time excluded)
+• Generation and evaluation time excluded from the time limit
 • Score 100–1,000; passing score ≥ 720
 • Multiple choice: select A, B, C, or D
 
 HOW TO RUN THE EXAM:
-1. Call start_exam — initialises a session and reveals the selected scenarios
+1. Call start_exam or start_exam_mini — initialises a session and reveals the selected scenarios
 2. Call get_next_question — generates question 1 (do NOT answer yet; present it to the user)
 3. Wait for the user to choose A / B / C / D
 4. Call submit_answer with the question_id and their choice
 5. Show the correct/incorrect result and explanation to the user
-6. Repeat steps 2-5 for all 60 questions
+6. Repeat steps 2-5 until all questions in the session are answered
 7. Call get_results after the final answer for the final score
 
 IMPORTANT DISPLAY RULES:
@@ -169,17 +175,22 @@ def _compute_question_params(
     session: ExamSession, question_number: int
 ) -> tuple[int, dict, int, dict, list[dict], str, list[str]]:
     """Compute all generation parameters for a given question number."""
-    scenario_idx = (question_number - 1) // QUESTIONS_PER_SCENARIO
+    qps = session.questions_per_scenario
+    scenario_idx = (question_number - 1) // qps
     scenario_id = session.selected_scenario_ids[scenario_idx]
     scenario = SCENARIOS[scenario_id]
-    slot_within_scenario = (question_number - 1) % QUESTIONS_PER_SCENARIO
-    domain_distribution = get_domain_question_distribution(QUESTIONS_PER_SCENARIO)
+    slot_within_scenario = (question_number - 1) % qps
+    domain_distribution = get_domain_question_distribution(qps)
     domain_id = _select_domain_for_slot(slot_within_scenario, scenario["primary_domains"], domain_distribution)
     domain = DOMAINS[domain_id]
     few_shot_examples = _get_few_shot_examples(domain_id, n=2)
     target_concept = _pick_target_concept(domain_id, domain, session)
     already_tested = list(session.tested_concepts.get(domain_id, []))
     return scenario_id, scenario, domain_id, domain, few_shot_examples, target_concept, already_tested
+
+
+def _exam_duration_minutes(session: ExamSession) -> int:
+    return int(session.exam_duration_seconds / 60)
 
 
 async def _prefetch_with_params(
@@ -337,20 +348,26 @@ async def start_exam() -> str:
     """
     reset_session()
     session = ExamSession(session_id=f"exam-{random.randint(1000, 9999)}")
+    session.exam_mode = "full"
+    session.total_questions = TOTAL_QUESTIONS
+    session.questions_per_scenario = QUESTIONS_PER_SCENARIO
+    session.exam_duration_seconds = float(EXAM_DURATION_SECONDS)
     session.selected_scenario_ids = random.sample(list(SCENARIOS.keys()), SCENARIOS_PER_EXAM)
     set_session(session)
 
-    session.log("Exam session started.")
+    session.log("Exam session started (full exam).")
     session.log(f"Selected scenarios: {session.selected_scenario_ids}")
 
     selected_names = [SCENARIOS[sid]["name"] for sid in session.selected_scenario_ids]
 
+    dur_min = _exam_duration_minutes(session)
     return json.dumps(
         {
             "session_id": session.session_id,
-            "total_questions": TOTAL_QUESTIONS,
-            "questions_per_scenario": QUESTIONS_PER_SCENARIO,
-            "exam_duration_minutes": 120,
+            "exam_mode": session.exam_mode,
+            "total_questions": session.total_questions,
+            "questions_per_scenario": session.questions_per_scenario,
+            "exam_duration_minutes": dur_min,
             "passing_score": 720,
             "score_range": "100–1000",
             "selected_scenarios": [
@@ -363,7 +380,59 @@ async def start_exam() -> str:
             },
             "note": (
                 "Timer runs only while the user is reading/answering questions. "
-                "Generation and evaluation time is excluded from the 120-minute limit."
+                f"Generation and evaluation time is excluded from the {dur_min}-minute limit."
+            ),
+            "next_step": "Call get_next_question to receive question 1.",
+        },
+        indent=2,
+    )
+
+
+@mcp.tool()
+async def start_exam_mini() -> str:
+    """
+    Initialize a shorter practice exam: 20 questions (4 scenarios × 5 questions).
+
+    Same flow as start_exam; user-active time is scaled linearly from the full exam
+    (40 minutes vs 120 minutes). Use get_next_question, submit_answer, and get_results
+    as usual.
+    """
+    reset_session()
+    session = ExamSession(session_id=f"exam-mini-{random.randint(1000, 9999)}")
+    session.exam_mode = "mini"
+    session.total_questions = MINI_TOTAL_QUESTIONS
+    session.questions_per_scenario = MINI_QUESTIONS_PER_SCENARIO
+    session.exam_duration_seconds = float(MINI_EXAM_DURATION_SECONDS)
+    session.selected_scenario_ids = random.sample(list(SCENARIOS.keys()), SCENARIOS_PER_EXAM)
+    set_session(session)
+
+    session.log("Exam session started (mini exam).")
+    session.log(f"Selected scenarios: {session.selected_scenario_ids}")
+
+    selected_names = [SCENARIOS[sid]["name"] for sid in session.selected_scenario_ids]
+    dur_min = _exam_duration_minutes(session)
+
+    return json.dumps(
+        {
+            "session_id": session.session_id,
+            "exam_mode": session.exam_mode,
+            "total_questions": session.total_questions,
+            "questions_per_scenario": session.questions_per_scenario,
+            "exam_duration_minutes": dur_min,
+            "passing_score": 720,
+            "score_range": "100–1000",
+            "selected_scenarios": [
+                {"number": i + 1, "name": name}
+                for i, name in enumerate(selected_names)
+            ],
+            "domain_weights": {
+                d["name"]: f"{int(d['weight'] * 100)}%"
+                for d in DOMAINS.values()
+            },
+            "note": (
+                "Timer runs only while the user is reading/answering questions. "
+                f"Generation and evaluation time is excluded from the {dur_min}-minute limit "
+                "(linearly scaled from the full 120-minute exam)."
             ),
             "next_step": "Call get_next_question to receive question 1.",
         },
@@ -384,18 +453,21 @@ async def get_next_question(ctx: Context) -> str:
     """
     session = get_session()
     if not session:
-        return json.dumps({"error": "No active session. Call start_exam first."})
+        return json.dumps({"error": "No active session. Call start_exam or start_exam_mini first."})
 
     if session.is_time_expired:
         return json.dumps(
             {
                 "error": "Time expired.",
-                "message": "Your 120 minutes of active exam time have elapsed. Call get_results.",
+                "message": (
+                    f"Your {_exam_duration_minutes(session)} minutes of active exam time have elapsed. "
+                    "Call get_results."
+                ),
             }
         )
 
     question_number = session.questions_generated + 1
-    if question_number > TOTAL_QUESTIONS:
+    if question_number > session.total_questions:
         return json.dumps(
             {"error": "All questions have been generated. Call get_results after answering them."}
         )
@@ -467,12 +539,12 @@ async def get_next_question(ctx: Context) -> str:
     # Mark delivery time — user active time begins now
     question.delivered_at = datetime.now(timezone.utc)
 
-    is_first_in_scenario = ((question_number - 1) % QUESTIONS_PER_SCENARIO) == 0
+    is_first_in_scenario = ((question_number - 1) % session.questions_per_scenario) == 0
     remaining_minutes = int(session.remaining_seconds / 60)
 
     # Kick off background prefetch for the next question while user reads this one
     next_q = question_number + 1
-    if next_q <= TOTAL_QUESTIONS and not session.is_time_expired:
+    if next_q <= session.total_questions and not session.is_time_expired:
         try:
             next_params = _compute_question_params(session, next_q)
             session.prefetch_task = asyncio.create_task(
@@ -486,8 +558,9 @@ async def get_next_question(ctx: Context) -> str:
         {
             "question_id": question_id,
             "question_number": question_number,
-            "total_questions": TOTAL_QUESTIONS,
-            "progress": f"{question_number}/{TOTAL_QUESTIONS}",
+            "total_questions": session.total_questions,
+            "exam_mode": session.exam_mode,
+            "progress": f"{question_number}/{session.total_questions}",
             "time_remaining": f"{remaining_minutes} minutes",
             "scenario": scenario["name"],
             "scenario_description": scenario["description"] if is_first_in_scenario else None,
@@ -510,11 +583,11 @@ async def submit_answer(question_id: str, answer: str) -> str:
         answer: The user's choice: A, B, C, or D.
 
     Returns correct/incorrect verdict, the correct answer, and a full explanation.
-    The user's active time for this question is recorded and deducted from the 120-minute budget.
+    The user's active time for this question is recorded and deducted from the session time budget.
     """
     session = get_session()
     if not session:
-        return json.dumps({"error": "No active session. Call start_exam first."})
+        return json.dumps({"error": "No active session. Call start_exam or start_exam_mini first."})
 
     answer = answer.upper().strip()
     if answer not in ("A", "B", "C", "D"):
@@ -561,7 +634,7 @@ async def submit_answer(question_id: str, answer: str) -> str:
         session=session,
     )
 
-    questions_remaining = TOTAL_QUESTIONS - session.questions_answered
+    questions_remaining = session.total_questions - session.questions_answered
     remaining_minutes = int(session.remaining_seconds / 60)
     running_score = calculate_scaled_score(session.correct_count, session.questions_answered)
 
@@ -601,18 +674,18 @@ async def get_results() -> str:
     Returns the scaled score (100–1,000), pass/fail status, per-domain breakdown,
     and a per-question summary so the user can review all their answers.
 
-    Call this after all 60 questions are answered (or when time expires).
+    Call this after all questions are answered (or when time expires).
     """
     session = get_session()
     if not session:
-        return json.dumps({"error": "No active session. Call start_exam first."})
+        return json.dumps({"error": "No active session. Call start_exam or start_exam_mini first."})
 
     if session.questions_answered == 0:
         return json.dumps({"error": "No questions answered yet."})
 
     correct = session.correct_count
     total_answered = session.questions_answered
-    score = calculate_scaled_score(correct, TOTAL_QUESTIONS)
+    score = calculate_scaled_score(correct, session.total_questions)
     passed = is_passing(score)
 
     time_used = format_time(session.accumulated_user_seconds)
@@ -639,7 +712,8 @@ async def get_results() -> str:
             "passing_score": 720,
             "passed": passed,
             "correct_answers": correct,
-            "total_questions": TOTAL_QUESTIONS,
+            "exam_mode": session.exam_mode,
+            "total_questions": session.total_questions,
             "questions_answered": total_answered,
             "time_used": time_used,
             "time_remaining": time_remaining,
@@ -659,7 +733,7 @@ async def exam_status() -> str:
     """
     session = get_session()
     if not session:
-        return json.dumps({"status": "No active session. Call start_exam to begin."})
+        return json.dumps({"status": "No active session. Call start_exam or start_exam_mini to begin."})
 
     remaining_minutes = int(session.remaining_seconds / 60)
     remaining_seconds_part = int(session.remaining_seconds % 60)
@@ -669,7 +743,9 @@ async def exam_status() -> str:
             "session_id": session.session_id,
             "questions_generated": session.questions_generated,
             "questions_answered": session.questions_answered,
-            "total_questions": TOTAL_QUESTIONS,
+            "exam_mode": session.exam_mode,
+            "total_questions": session.total_questions,
+            "questions_per_scenario": session.questions_per_scenario,
             "correct_so_far": session.correct_count,
             "time_remaining": f"{remaining_minutes}m {remaining_seconds_part}s",
             "time_expired": session.is_time_expired,

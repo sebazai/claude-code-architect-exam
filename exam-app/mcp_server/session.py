@@ -2,13 +2,19 @@
 In-memory exam session state.
 
 Lives as long as the MCP server process — sufficient for a single exam session.
-The session is reset by start_exam and persists through all subsequent tool calls.
+The session is reset by start_exam / start_exam_mini and persists through subsequent tool calls.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+
+from .exam_content import (
+    EXAM_DURATION_SECONDS,
+    QUESTIONS_PER_SCENARIO,
+    TOTAL_QUESTIONS,
+)
 
 
 @dataclass
@@ -49,6 +55,12 @@ class ExamSession:
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     log_entries: list[str] = field(default_factory=list)
 
+    # Exam shape (full 60-Q vs mini 20-Q, etc.) — set by start_exam / start_exam_mini
+    exam_mode: str = "full"  # "full" | "mini"
+    total_questions: int = TOTAL_QUESTIONS
+    questions_per_scenario: int = QUESTIONS_PER_SCENARIO
+    exam_duration_seconds: float = EXAM_DURATION_SECONDS
+
     # Accumulated user-active seconds (excludes MCP generation/eval time)
     accumulated_user_seconds: float = 0.0
 
@@ -58,11 +70,6 @@ class ExamSession:
     # Pre-generated next question (background prefetch)
     prefetch_task: Any = field(default=None, compare=False, repr=False)
     prefetch_result: dict | None = field(default=None)
-
-    @property
-    def total_questions(self) -> int:
-        from .exam_content import TOTAL_QUESTIONS
-        return TOTAL_QUESTIONS
 
     @property
     def questions_answered(self) -> int:
@@ -78,8 +85,7 @@ class ExamSession:
 
     @property
     def remaining_seconds(self) -> float:
-        from .exam_content import EXAM_DURATION_SECONDS
-        return max(0.0, EXAM_DURATION_SECONDS - self.accumulated_user_seconds)
+        return max(0.0, self.exam_duration_seconds - self.accumulated_user_seconds)
 
     @property
     def is_time_expired(self) -> bool:
