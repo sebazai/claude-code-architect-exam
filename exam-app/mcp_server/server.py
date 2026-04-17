@@ -15,6 +15,7 @@ Tool flow:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import random
@@ -162,6 +163,59 @@ def _pick_target_concept(domain_id: int, domain: dict, session: ExamSession) -> 
     tested = session.tested_concepts.get(domain_id, [])
     remaining = [c for c in concepts if c not in tested]
     return random.choice(remaining) if remaining else random.choice(concepts)
+
+
+def _compute_question_params(
+    session: ExamSession, question_number: int
+) -> tuple[int, dict, int, dict, list[dict], str, list[str]]:
+    """Compute all generation parameters for a given question number."""
+    scenario_idx = (question_number - 1) // QUESTIONS_PER_SCENARIO
+    scenario_id = session.selected_scenario_ids[scenario_idx]
+    scenario = SCENARIOS[scenario_id]
+    slot_within_scenario = (question_number - 1) % QUESTIONS_PER_SCENARIO
+    domain_distribution = get_domain_question_distribution(QUESTIONS_PER_SCENARIO)
+    domain_id = _select_domain_for_slot(slot_within_scenario, scenario["primary_domains"], domain_distribution)
+    domain = DOMAINS[domain_id]
+    few_shot_examples = _get_few_shot_examples(domain_id, n=2)
+    target_concept = _pick_target_concept(domain_id, domain, session)
+    already_tested = list(session.tested_concepts.get(domain_id, []))
+    return scenario_id, scenario, domain_id, domain, few_shot_examples, target_concept, already_tested
+
+
+async def _prefetch_with_params(
+    ctx: Context,
+    session: ExamSession,
+    question_number: int,
+    scenario_id: int,
+    scenario: dict,
+    domain_id: int,
+    domain: dict,
+    few_shot_examples: list[dict],
+    target_concept: str,
+    already_tested: list[str],
+) -> None:
+    """Background task: pre-generate a question and store result on the session."""
+    try:
+        session.log(f"[prefetch] Starting Q{question_number}: scenario={scenario_id} domain={domain_id} concept='{target_concept[:40]}'")
+        question_data, quality_score = await _generate_question_with_retry(
+            ctx, scenario, domain, few_shot_examples,
+            target_concept=target_concept,
+            already_tested=already_tested,
+        )
+        session.prefetch_result = {
+            "for_question_number": question_number,
+            "question_data": question_data,
+            "quality_score": quality_score,
+            "scenario_id": scenario_id,
+            "scenario": scenario,
+            "domain_id": domain_id,
+            "domain": domain,
+            "target_concept": target_concept,
+        }
+        session.log(f"[prefetch] Q{question_number} ready (quality={quality_score})")
+    except Exception as exc:
+        session.log(f"[prefetch] Q{question_number} failed: {exc}")
+        session.prefetch_result = None
 
 
 async def _generate_question_with_retry(
@@ -346,30 +400,41 @@ async def get_next_question(ctx: Context) -> str:
             {"error": "All questions have been generated. Call get_results after answering them."}
         )
 
-    # Determine scenario and domain for this slot
-    scenario_idx = (question_number - 1) // QUESTIONS_PER_SCENARIO
-    scenario_id = session.selected_scenario_ids[scenario_idx]
-    scenario = SCENARIOS[scenario_id]
+    # --- Try to use pre-generated (prefetched) question ---
+    prefetch = session.prefetch_result
+    prefetch_task = session.prefetch_task
 
-    slot_within_scenario = (question_number - 1) % QUESTIONS_PER_SCENARIO
-    domain_distribution = get_domain_question_distribution(QUESTIONS_PER_SCENARIO)
-    domain_id = _select_domain_for_slot(
-        slot_within_scenario, scenario["primary_domains"], domain_distribution
-    )
-    domain = DOMAINS[domain_id]
+    if prefetch_task is not None and (prefetch is None or prefetch.get("for_question_number") == question_number):
+        if not prefetch_task.done():
+            session.log(f"Waiting for prefetch of Q{question_number}…")
+            await prefetch_task
+        prefetch = session.prefetch_result  # may now be populated
 
-    few_shot_examples = _get_few_shot_examples(domain_id, n=2)
-    target_concept = _pick_target_concept(domain_id, domain, session)
-    already_tested = session.tested_concepts.get(domain_id, [])
+    if prefetch and prefetch.get("for_question_number") == question_number:
+        # Consume the cached result
+        session.prefetch_result = None
+        session.prefetch_task = None
+        question_data = prefetch["question_data"]
+        quality_score = prefetch["quality_score"]
+        scenario_id = prefetch["scenario_id"]
+        scenario = prefetch["scenario"]
+        domain_id = prefetch["domain_id"]
+        domain = prefetch["domain"]
+        target_concept = prefetch["target_concept"]
+        session.log(f"Using prefetched Q{question_number} (quality={quality_score})")
+    else:
+        # Prefetch unavailable or for wrong question — generate normally
+        session.prefetch_result = None
+        session.prefetch_task = None
+        scenario_id, scenario, domain_id, domain, few_shot_examples, target_concept, already_tested = \
+            _compute_question_params(session, question_number)
+        session.log(f"Generating Q{question_number}: scenario={scenario_id} domain={domain_id} concept='{target_concept[:40]}'")
+        question_data, quality_score = await _generate_question_with_retry(
+            ctx, scenario, domain, few_shot_examples,
+            target_concept=target_concept,
+            already_tested=already_tested,
+        )
 
-    session.log(f"Generating Q{question_number}: scenario={scenario_id} domain={domain_id} concept='{target_concept[:40]}'")
-
-    # Agentic generation + quality-eval loop
-    question_data, quality_score = await _generate_question_with_retry(
-        ctx, scenario, domain, few_shot_examples,
-        target_concept=target_concept,
-        already_tested=already_tested,
-    )
     session.record_concept_tested(domain_id, target_concept)
 
     question_id = f"q{question_number}"
@@ -402,8 +467,20 @@ async def get_next_question(ctx: Context) -> str:
     # Mark delivery time — user active time begins now
     question.delivered_at = datetime.now(timezone.utc)
 
-    is_first_in_scenario = slot_within_scenario == 0
+    is_first_in_scenario = ((question_number - 1) % QUESTIONS_PER_SCENARIO) == 0
     remaining_minutes = int(session.remaining_seconds / 60)
+
+    # Kick off background prefetch for the next question while user reads this one
+    next_q = question_number + 1
+    if next_q <= TOTAL_QUESTIONS and not session.is_time_expired:
+        try:
+            next_params = _compute_question_params(session, next_q)
+            session.prefetch_task = asyncio.create_task(
+                _prefetch_with_params(ctx, session, next_q, *next_params)
+            )
+            session.log(f"[prefetch] Background task started for Q{next_q}")
+        except Exception as exc:
+            session.log(f"[prefetch] Could not start task for Q{next_q}: {exc}")
 
     return json.dumps(
         {

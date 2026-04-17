@@ -19,7 +19,10 @@
       "Bash(python -c \"import mcp; print\\(mcp.__version__\\)\")",
       "Bash(python -c \"from mcp.server.fastmcp import Context; print\\([m for m in dir\\(Context\\) if not m.startswith\\('__'\\)]\\)\")",
       "Bash(pip show *)",
-      "mcp__claude-architect-exam__submit_answer"
+      "mcp__claude-architect-exam__submit_answer",
+      "Bash(python -c \"from exam_app.mcp_server.server import mcp; print\\('OK'\\)\")",
+      "Bash(python -m py_compile exam-app/mcp_server/server.py)",
+      "Bash(python -m py_compile exam-app/mcp_server/session.py)"
     ]
   },
   "enableAllProjectMcpServers": true,

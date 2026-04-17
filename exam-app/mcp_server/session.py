@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 
 @dataclass
@@ -53,6 +54,10 @@ class ExamSession:
 
     # Concepts targeted per domain — used to avoid repetition across questions
     tested_concepts: dict[int, list[str]] = field(default_factory=dict)
+
+    # Pre-generated next question (background prefetch)
+    prefetch_task: Any = field(default=None, compare=False, repr=False)
+    prefetch_result: dict | None = field(default=None)
 
     @property
     def total_questions(self) -> int:
