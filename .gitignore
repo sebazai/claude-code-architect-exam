@@ -2,7 +2,7 @@
 pdf_pages/
 
 .mypy_cache/
-**/__pycache__/
+**/__pycache__/**
 _pycache_/
 .pytest_cache/
 .ruff_cache/
