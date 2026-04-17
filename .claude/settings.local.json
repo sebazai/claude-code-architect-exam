@@ -22,7 +22,8 @@
       "mcp__claude-architect-exam__submit_answer",
       "Bash(python -c \"from exam_app.mcp_server.server import mcp; print\\('OK'\\)\")",
       "Bash(python -m py_compile exam-app/mcp_server/server.py)",
-      "Bash(python -m py_compile exam-app/mcp_server/session.py)"
+      "Bash(python -m py_compile exam-app/mcp_server/session.py)",
+      "mcp__claude-architect-exam__start_exam_mini"
     ]
   },
   "enableAllProjectMcpServers": true,

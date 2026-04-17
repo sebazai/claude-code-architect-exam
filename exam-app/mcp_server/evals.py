@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import re
 from dataclasses import dataclass, field
 
@@ -117,6 +118,10 @@ Your question must test a concept not present in any example below.
 - Each distractor must exploit a DIFFERENT anti-pattern from the list above; name the
   anti-pattern it represents in the explanation
 - The explanation must state WHY the correct answer is right AND briefly why each distractor is wrong
+- Questions must require system-level architectural reasoning — evaluating trade-offs, predicting failure
+  modes at scale, or choosing between competing design patterns. Avoid questions answerable by recall alone.
+- Vary the letter of the correct answer. Do NOT default to placing the correct answer at option A.
+  Use B, C, and D as frequently as A across generated questions.
 
 Respond with ONLY this JSON (no markdown, no extra text):
 {{
@@ -254,8 +259,10 @@ def parse_quality_result(text: str) -> QualityResult:
         return QualityResult(score=1, feedback=f"Parse error: {exc}")
 
 
-def parse_question(text: str, fallback_correct: str = "A") -> dict:
+def parse_question(text: str, fallback_correct: str | None = None) -> dict:
     """Parse sampling response into a question dict, with graceful fallback."""
+    if fallback_correct is None:
+        fallback_correct = random.choice(["A", "B", "C", "D"])
     try:
         data = _extract_json(text)
         # Normalise correct to uppercase single letter

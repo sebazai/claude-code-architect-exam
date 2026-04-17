@@ -424,17 +424,17 @@ SAMPLE_QUESTIONS: list[dict] = [
             "most effective way to improve escalation calibration?"
         ),
         "options": {
-            "A": "Add explicit escalation criteria to your system prompt with few-shot examples demonstrating when to escalate versus resolve autonomously.",
+            "A": "Deploy a separate classifier model trained on historical tickets to predict which requests need escalation before the main agent begins processing.",
             "B": "Have the agent self-report a confidence score (1-10) before each response and automatically route requests to humans when confidence falls below a threshold.",
-            "C": "Deploy a separate classifier model trained on historical tickets to predict which requests need escalation before the main agent begins processing.",
+            "C": "Add explicit escalation criteria to your system prompt with few-shot examples demonstrating when to escalate versus resolve autonomously.",
             "D": "Implement sentiment analysis to detect customer frustration levels and automatically escalate when negative sentiment exceeds a threshold.",
         },
-        "correct": "A",
+        "correct": "C",
         "explanation": (
             "Adding explicit escalation criteria with few-shot examples directly addresses the root cause: "
             "unclear decision boundaries. This is the proportionate first response before adding infrastructure. "
             "Option B fails because LLM self-reported confidence is poorly calibrated — the agent is already "
-            "incorrectly confident on hard cases. Option C is over-engineered, requiring labeled data and ML "
+            "incorrectly confident on hard cases. Option A is over-engineered, requiring labeled data and ML "
             "infrastructure when prompt optimization hasn't been tried. Option D solves a different problem "
             "entirely; sentiment doesn't correlate with case complexity, which is the actual issue."
         ),
@@ -472,17 +472,17 @@ SAMPLE_QUESTIONS: list[dict] = [
             "module dependencies. Which approach should you take?"
         ),
         "options": {
-            "A": "Enter plan mode to explore the codebase, understand dependencies, and design an implementation approach before making changes.",
+            "A": "Use direct execution with comprehensive upfront instructions detailing exactly how each service should be structured.",
             "B": "Start with direct execution and make changes incrementally, letting the implementation reveal the natural service boundaries.",
-            "C": "Use direct execution with comprehensive upfront instructions detailing exactly how each service should be structured.",
+            "C": "Enter plan mode to explore the codebase, understand dependencies, and design an implementation approach before making changes.",
             "D": "Begin in direct execution mode and only switch to plan mode if you encounter unexpected complexity during implementation.",
         },
-        "correct": "A",
+        "correct": "C",
         "explanation": (
             "Plan mode is designed for complex tasks involving large-scale changes, multiple valid approaches, "
             "and architectural decisions — exactly what monolith-to-microservices restructuring requires. It "
             "enables safe codebase exploration and design before committing to changes. Option B risks costly "
-            "rework when dependencies are discovered late. Option C assumes you already know the right structure "
+            "rework when dependencies are discovered late. Option A assumes you already know the right structure "
             "without exploring the code. Option D ignores that the complexity is already stated in the "
             "requirements, not something that might emerge later."
         ),
@@ -499,19 +499,19 @@ SAMPLE_QUESTIONS: list[dict] = [
             "applies the correct conventions when generating code?"
         ),
         "options": {
-            "A": "Create rule files in .claude/rules/ with YAML frontmatter specifying glob patterns to conditionally apply conventions based on file paths.",
+            "A": "Place a separate CLAUDE.md file in each subdirectory containing that area's specific conventions.",
             "B": "Consolidate all conventions in the root CLAUDE.md file under headers for each area, relying on Claude to infer which section applies.",
             "C": "Create skills in .claude/skills/ for each code type that include the relevant conventions in their SKILL.md files.",
-            "D": "Place a separate CLAUDE.md file in each subdirectory containing that area's specific conventions.",
+            "D": "Create rule files in .claude/rules/ with YAML frontmatter specifying glob patterns to conditionally apply conventions based on file paths.",
         },
-        "correct": "A",
+        "correct": "D",
         "explanation": (
-            "Option A is correct because .claude/rules/ with glob patterns (e.g., **/*.test.tsx) allows "
+            "Option D is correct because .claude/rules/ with glob patterns (e.g., **/*.test.tsx) allows "
             "conventions to be automatically applied based on file paths regardless of directory location — "
             "essential for test files spread throughout the codebase. Option B relies on inference rather than "
             "explicit matching, making it unreliable. Option C requires manual skill invocation or relies on "
             "Claude choosing to load them, contradicting the need for deterministic 'automatic' application "
-            "based on file paths. Option D can't easily handle files spread across many directories since "
+            "based on file paths. Option A can't easily handle files spread across many directories since "
             "CLAUDE.md files are directory-bound."
         ),
     },
@@ -530,16 +530,16 @@ SAMPLE_QUESTIONS: list[dict] = [
         ),
         "options": {
             "A": "The synthesis agent lacks instructions for identifying coverage gaps in the findings it receives from other agents.",
-            "B": "The coordinator agent's task decomposition is too narrow, resulting in subagent assignments that don't cover all relevant domains of the topic.",
-            "C": "The web search agent's queries are not comprehensive enough and need to be expanded to cover more creative industry sectors.",
-            "D": "The document analysis agent is filtering out sources related to non-visual creative industries due to overly restrictive relevance criteria.",
+            "B": "The web search agent's queries are not comprehensive enough and need to be expanded to cover more creative industry sectors.",
+            "C": "The document analysis agent is filtering out sources related to non-visual creative industries due to overly restrictive relevance criteria.",
+            "D": "The coordinator agent's task decomposition is too narrow, resulting in subagent assignments that don't cover all relevant domains of the topic.",
         },
-        "correct": "B",
+        "correct": "D",
         "explanation": (
             "The coordinator's logs reveal the root cause directly: it decomposed 'creative industries' into "
             "only visual arts subtasks (digital art, graphic design, photography), completely omitting music, "
             "writing, and film. The subagents executed their assigned tasks correctly — the problem is what "
-            "they were assigned. Options A, C, and D incorrectly blame downstream agents that are working "
+            "they were assigned. Options A, B, and C incorrectly blame downstream agents that are working "
             "correctly within their assigned scope."
         ),
     },
@@ -552,17 +552,17 @@ SAMPLE_QUESTIONS: list[dict] = [
             "enables intelligent recovery?"
         ),
         "options": {
-            "A": "Return structured error context to the coordinator including the failure type, the attempted query, any partial results, and potential alternative approaches.",
+            "A": "Catch the timeout within the subagent and return an empty result set marked as successful.",
             "B": "Implement automatic retry logic with exponential backoff within the subagent, returning a generic 'search unavailable' status only after all retries are exhausted.",
-            "C": "Catch the timeout within the subagent and return an empty result set marked as successful.",
+            "C": "Return structured error context to the coordinator including the failure type, the attempted query, any partial results, and potential alternative approaches.",
             "D": "Propagate the timeout exception directly to a top-level handler that terminates the entire research workflow.",
         },
-        "correct": "A",
+        "correct": "C",
         "explanation": (
             "Structured error context gives the coordinator the information it needs to make intelligent "
             "recovery decisions — whether to retry with a modified query, try an alternative approach, or "
             "proceed with partial results. Option B's generic status hides valuable context from the "
-            "coordinator, preventing informed decisions. Option C suppresses the error by marking failure as "
+            "coordinator, preventing informed decisions. Option A suppresses the error by marking failure as "
             "success, which prevents any recovery and risks incomplete research outputs. Option D terminates "
             "the entire workflow unnecessarily when recovery strategies could succeed."
         ),
@@ -605,12 +605,12 @@ SAMPLE_QUESTIONS: list[dict] = [
             "correct approach to run Claude Code in an automated pipeline?"
         ),
         "options": {
-            "A": "Add the -p flag: claude -p \"Analyze this pull request for security issues\"",
+            "A": "Redirect stdin from /dev/null: claude \"Analyze this pull request for security issues\" < /dev/null",
             "B": "Set the environment variable CLAUDE_HEADLESS=true before running the command.",
-            "C": "Redirect stdin from /dev/null: claude \"Analyze this pull request for security issues\" < /dev/null",
+            "C": "Add the -p flag: claude -p \"Analyze this pull request for security issues\"",
             "D": "Add the --batch flag: claude --batch \"Analyze this pull request for security issues\"",
         },
-        "correct": "A",
+        "correct": "C",
         "explanation": (
             "The -p (or --print) flag is the documented way to run Claude Code in non-interactive mode. It "
             "processes the prompt, outputs the result to stdout, and exits without waiting for user input — "
@@ -657,18 +657,18 @@ SAMPLE_QUESTIONS: list[dict] = [
             "How should you restructure the review?"
         ),
         "options": {
-            "A": "Split into focused passes: analyze each file individually for local issues, then run a separate integration-focused pass examining cross-file data flow.",
+            "A": "Run three independent review passes on the full PR and only flag issues that appear in at least two of the three runs.",
             "B": "Require developers to split large PRs into smaller submissions of 3-4 files before the automated review runs.",
             "C": "Switch to a higher-tier model with a larger context window to give all 14 files adequate attention in one pass.",
-            "D": "Run three independent review passes on the full PR and only flag issues that appear in at least two of the three runs.",
+            "D": "Split into focused passes: analyze each file individually for local issues, then run a separate integration-focused pass examining cross-file data flow.",
         },
-        "correct": "A",
+        "correct": "D",
         "explanation": (
             "Splitting reviews into focused passes directly addresses the root cause: attention dilution when "
             "processing many files at once. File-by-file analysis ensures consistent depth, while a separate "
             "integration pass catches cross-file issues. Option B shifts burden to developers without improving "
             "the system. Option C misunderstands that larger context windows don't solve attention quality "
-            "issues. Option D would actually suppress detection of real bugs by requiring consensus on issues "
+            "issues. Option A would actually suppress detection of real bugs by requiring consensus on issues "
             "that may only be caught intermittently."
         ),
     },
@@ -764,11 +764,11 @@ SAMPLE_QUESTIONS: list[dict] = [
         ),
         "options": {
             "A": "Switch property_type from an enum to a free-text string field to eliminate all validation failures.",
-            "B": "Add a catch-all 'other' value to the enum paired with a property_type_detail string field, making the schema resilient to novel types without requiring ongoing expansion.",
+            "B": "Increase the retry limit so the model attempts to remap novel types to the closest known enum value on each retry.",
             "C": "Add a pre-processing classifier that normalizes any novel property type to the closest existing enum value before extraction.",
-            "D": "Increase the retry limit so the model attempts to remap novel types to the closest known enum value on each retry.",
+            "D": "Add a catch-all 'other' value to the enum paired with a property_type_detail string field, making the schema resilient to novel types without requiring ongoing expansion.",
         },
-        "correct": "B",
+        "correct": "D",
         "explanation": (
             "Continuously expanding enums is a fragile anti-pattern — the schema breaks on every new edge "
             "case encountered in production. The resilient pattern adds a catch-all 'other' value paired "
@@ -776,7 +776,7 @@ SAMPLE_QUESTIONS: list[dict] = [
             "incorrectly mapped, validation always passes, and the detail field preserves the original "
             "value for downstream handling or human review. Option A loses the schema enforcement benefits "
             "that structured extraction provides. Option C introduces a preprocessing step that silently "
-            "corrupts data semantics by forcing incorrect mappings. Option D has the same data corruption "
+            "corrupts data semantics by forcing incorrect mappings. Option B has the same data corruption "
             "problem as C and adds unnecessary latency."
         ),
     },
