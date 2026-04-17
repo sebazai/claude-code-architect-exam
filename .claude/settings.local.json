@@ -4,7 +4,15 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(mkdir -p /workspace/evals/mcp_server)",
-      "Bash(touch /workspace/evals/mcp_server/__init__.py)"
+      "Bash(touch /workspace/evals/mcp_server/__init__.py)",
+      "WebFetch(domain:drive.google.com)",
+      "WebFetch(domain:drive.usercontent.google.com)",
+      "Bash(python3 -c \"import pdfminer\")",
+      "Bash(python3 -c \"import PyPDF2\")",
+      "Bash(python3 -c \"import fitz\")",
+      "Bash(pip list *)",
+      "Bash(pip install *)",
+      "Bash(python3 *)"
     ]
   },
   "enableAllProjectMcpServers": true,
