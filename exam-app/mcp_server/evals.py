@@ -97,17 +97,23 @@ Key concepts candidates must understand:
 Common anti-patterns that distractors should exploit:
 {anti_patterns}
 
-═══ STYLE GUIDE ═══
-Follow this exact style from real exam sample questions:
+═══ STYLE REFERENCE ═══
+Study these examples to understand QUESTION STRUCTURE and REASONING DEPTH only.
+Do NOT reuse their root causes, correct answers, or anti-patterns.
+Your question must test a concept not present in any example below.
 
 {few_shot_examples}
-
+{target_concept_block}{already_tested_block}
 ═══ REQUIREMENTS ═══
 - Ground the question in the scenario above (reference specific tools, metrics, or constraints from it)
 - Test practical judgment about a TRADEOFF — not a fact
 - Exactly 4 options (A, B, C, D); ONE correct
 - Three distractors must be plausible to a candidate with INCOMPLETE knowledge
   (use anti-patterns listed above to craft realistic distractors)
+- The question stem must describe a concrete, observable symptom (a metric, log finding, or
+  user-visible failure) — not a generic design question
+- Each distractor must exploit a DIFFERENT anti-pattern from the list above; name the
+  anti-pattern it represents in the explanation
 - The explanation must state WHY the correct answer is right AND briefly why each distractor is wrong
 
 Respond with ONLY this JSON (no markdown, no extra text):
@@ -156,6 +162,8 @@ def build_generation_prompt(
     domain: dict,
     few_shot_examples: list[dict],
     retry_feedback: str = "",
+    target_concept: str = "",
+    already_tested: list[str] | None = None,
 ) -> str:
     """Construct the full question-generation prompt."""
     examples_text = "\n\n".join(
@@ -172,6 +180,27 @@ def build_generation_prompt(
         for i, ex in enumerate(few_shot_examples)
     )
 
+    if target_concept:
+        target_concept_block = (
+            f"\n═══ TARGET CONCEPT ═══\n"
+            f"Build your question around this specific concept:\n"
+            f"  {target_concept}\n\n"
+            f"Your scenario symptom, correct answer, and distractors must all be grounded in this concept.\n"
+        )
+    else:
+        target_concept_block = ""
+
+    if already_tested:
+        tested_lines = "\n".join(f"• {c}" for c in already_tested)
+        already_tested_block = (
+            f"\n═══ DO NOT RE-TEST ═══\n"
+            f"These concepts have already been covered in this exam session.\n"
+            f"Do NOT test any of them, even indirectly:\n"
+            f"{tested_lines}\n"
+        )
+    else:
+        already_tested_block = ""
+
     feedback_block = ""
     if retry_feedback:
         feedback_block = (
@@ -186,6 +215,8 @@ def build_generation_prompt(
         key_concepts="\n".join(f"• {kc}" for kc in domain["key_concepts"]),
         anti_patterns="\n".join(f"• {ap}" for ap in domain.get("anti_patterns", [])),
         few_shot_examples=examples_text,
+        target_concept_block=target_concept_block,
+        already_tested_block=already_tested_block,
         retry_feedback=feedback_block,
     )
 

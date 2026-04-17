@@ -108,13 +108,13 @@ def _select_domain_for_slot(
 
 def _get_few_shot_examples(domain_id: int, n: int = 2) -> list[dict]:
     """
-    Return up to n sample questions for the target domain.
+    Return up to n randomly selected sample questions for the target domain.
     Attaches scenario/domain name for prompt rendering.
     """
     matching = [q for q in SAMPLE_QUESTIONS if q["domain_id"] == domain_id]
     if not matching:
         matching = SAMPLE_QUESTIONS  # fallback: any sample
-    selected = matching[:n]
+    selected = random.sample(matching, min(n, len(matching)))
     result = []
     for q in selected:
         enriched = dict(q)
@@ -156,11 +156,21 @@ async def _sample_quality(ctx: Context, question: dict) -> QualityResult:
     return parse_quality_result(text)
 
 
+def _pick_target_concept(domain_id: int, domain: dict, session: ExamSession) -> str:
+    """Pick an untested key concept for this domain; falls back to any concept if all covered."""
+    concepts = domain["key_concepts"]
+    tested = session.tested_concepts.get(domain_id, [])
+    remaining = [c for c in concepts if c not in tested]
+    return random.choice(remaining) if remaining else random.choice(concepts)
+
+
 async def _generate_question_with_retry(
     ctx: Context,
     scenario: dict,
     domain: dict,
     few_shot_examples: list[dict],
+    target_concept: str = "",
+    already_tested: list[str] | None = None,
 ) -> tuple[dict, int]:
     """
     Agentic generation loop:
@@ -172,7 +182,12 @@ async def _generate_question_with_retry(
     best_score = 0
 
     for attempt in range(MAX_RETRIES + 1):
-        prompt = build_generation_prompt(scenario, domain, few_shot_examples, retry_feedback=feedback)
+        prompt = build_generation_prompt(
+            scenario, domain, few_shot_examples,
+            retry_feedback=feedback,
+            target_concept=target_concept,
+            already_tested=already_tested,
+        )
         try:
             question = await _sample_question(ctx, prompt)
         except ValueError as exc:
@@ -344,13 +359,18 @@ async def get_next_question(ctx: Context) -> str:
     domain = DOMAINS[domain_id]
 
     few_shot_examples = _get_few_shot_examples(domain_id, n=2)
+    target_concept = _pick_target_concept(domain_id, domain, session)
+    already_tested = session.tested_concepts.get(domain_id, [])
 
-    session.log(f"Generating Q{question_number}: scenario={scenario_id} domain={domain_id}")
+    session.log(f"Generating Q{question_number}: scenario={scenario_id} domain={domain_id} concept='{target_concept[:40]}'")
 
     # Agentic generation + quality-eval loop
     question_data, quality_score = await _generate_question_with_retry(
-        ctx, scenario, domain, few_shot_examples
+        ctx, scenario, domain, few_shot_examples,
+        target_concept=target_concept,
+        already_tested=already_tested,
     )
+    session.record_concept_tested(domain_id, target_concept)
 
     question_id = f"q{question_number}"
     question = Question(

@@ -51,6 +51,9 @@ class ExamSession:
     # Accumulated user-active seconds (excludes MCP generation/eval time)
     accumulated_user_seconds: float = 0.0
 
+    # Concepts targeted per domain — used to avoid repetition across questions
+    tested_concepts: dict[int, list[str]] = field(default_factory=dict)
+
     @property
     def total_questions(self) -> int:
         from .exam_content import TOTAL_QUESTIONS
@@ -89,6 +92,9 @@ class ExamSession:
     def record_answer(self, record: AnswerRecord) -> None:
         self.accumulated_user_seconds += record.user_seconds
         self.answers.append(record)
+
+    def record_concept_tested(self, domain_id: int, concept: str) -> None:
+        self.tested_concepts.setdefault(domain_id, []).append(concept)
 
     def log(self, entry: str) -> None:
         timestamp = datetime.now(timezone.utc).strftime("%H:%M:%S")
