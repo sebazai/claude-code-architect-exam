@@ -3,10 +3,14 @@ Exam content encoded from the Claude Certified Architect – Foundations exam gu
 
 Exam structure (real exam):
   - 60 questions, 120 minutes
-  - 4 scenarios randomly selected from 6
+  - 4 scenarios randomly selected from up to 13
   - 15 questions per scenario
   - Score: 100–1000 (passing: 720)
   - Multiple choice: 1 correct + 3 distractors
+
+Note: The official exam guide lists 6 scenarios, but the real exam draws from a larger
+pool of up to 13 scenarios. Scenarios 1–6 match the exam guide; 7–13 are additional
+scenarios reported by candidates that are within the Foundations domain scope.
 """
 
 # ---------------------------------------------------------------------------
@@ -73,6 +77,80 @@ SCENARIOS: dict[int, dict] = {
         ),
         "primary_domains": [4, 5],
     },
+    # ── Additional scenarios from the real exam pool (not in official guide) ──
+    7: {
+        "name": "Agentic Tool Design",
+        "description": (
+            "You are designing the tool layer for a production agentic system built on the Claude Agent SDK. "
+            "The system must integrate with multiple backend services via MCP tools, and you are responsible "
+            "for tool schema design, error handling conventions, authorization boundaries, and ensuring that "
+            "LLM tool selection is reliable and predictable across a suite of 12+ tools."
+        ),
+        "primary_domains": [2, 1],
+    },
+    8: {
+        "name": "Long Document Processing",
+        "description": (
+            "You are building a pipeline that processes long-form documents — contracts, research papers, "
+            "and technical specifications — using Claude. The system must extract structured data, summarize "
+            "sections, and answer questions about content that may exceed a single context window. You need "
+            "to manage context effectively, preserve information fidelity across processing stages, and "
+            "maintain source attribution throughout."
+        ),
+        "primary_domains": [5, 4],
+    },
+    9: {
+        "name": "Claude for Operations",
+        "description": (
+            "You are deploying Claude to support internal operations at scale: incident triage, runbook "
+            "execution, and cross-system workflow automation. The agent integrates with monitoring, ticketing, "
+            "and communication tools via MCP servers. You must design for reliability, safe autonomous "
+            "action, and clear human escalation paths when the agent reaches its authority boundaries."
+        ),
+        "primary_domains": [1, 2],
+    },
+    10: {
+        "name": "Conversational AI Patterns",
+        "description": (
+            "You are designing a multi-turn conversational AI product powered by Claude. The system must "
+            "maintain coherent context across long sessions, handle ambiguous or conflicting user instructions, "
+            "and produce consistently structured responses. You are responsible for prompt architecture, "
+            "context window management, persona consistency, and graceful handling of off-topic or adversarial inputs."
+        ),
+        "primary_domains": [4, 5],
+    },
+    11: {
+        "name": "Agent Skills for Enterprise Knowledge Management",
+        "description": (
+            "You are building Claude Code skills and CLAUDE.md configurations for an enterprise knowledge "
+            "management system. Teams use Claude Code to search, summarize, and cross-reference internal "
+            "documentation, wikis, and code repositories. You need to design skills with appropriate context "
+            "isolation, configure path-scoped rules for different knowledge domains, and expose MCP resources "
+            "to reduce exploratory tool calls."
+        ),
+        "primary_domains": [3, 2],
+    },
+    12: {
+        "name": "Agent Skills for Developer Tooling",
+        "description": (
+            "You are building a suite of Claude Code skills and custom slash commands for a platform "
+            "engineering team. The skills automate common developer workflows: scaffolding new services, "
+            "running compliance checks, generating API documentation, and triaging build failures. You must "
+            "configure skill isolation, tool access scoping, and team-wide vs personal command distribution."
+        ),
+        "primary_domains": [3, 1],
+    },
+    13: {
+        "name": "Agent Skills with Code Execution",
+        "description": (
+            "You are designing Claude Code skills that involve code generation and execution as part of "
+            "automated workflows: running test suites, benchmarking implementations, validating migrations, "
+            "and generating reproducible build artifacts. You must manage the safety boundaries of Bash "
+            "tool access, design execution feedback loops, and ensure that skills operate correctly in "
+            "both interactive and CI/CD non-interactive contexts."
+        ),
+        "primary_domains": [3, 4],
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -106,6 +184,12 @@ DOMAINS: dict[int, dict] = {
             "Dynamic decomposition: adaptive subtasks based on intermediate findings",
             "Parallel subagents: emit multiple Task tool calls in a single coordinator response",
             "Handoff summaries must include: customer ID, root cause, recommended action",
+            "Shared vector store: subagents index outputs for semantic retrieval — prevents daisy-chaining full conversation logs",
+            "Goal-oriented delegation: give subagents goals and quality criteria, not procedural steps; lets them adapt strategy",
+            "Structured intermediate representation: standardize subagent outputs to a common JSON schema (claim, evidence, source, confidence) before synthesis",
+            "tool_choice forced name: guarantees a specific tool fires first, enforcing pipeline execution order at the API level",
+            "Prompt caching on synthesis subagent: reduces re-send overhead when 80K+ tokens of findings accumulate each turn",
+            "Parallelization for latency: coordinator spawns N subagents simultaneously for independent work items (e.g., 12 legal precedents → 6x speedup)",
         ],
         "anti_patterns": [
             "Parsing natural language signals to determine loop termination",
@@ -113,6 +197,8 @@ DOMAINS: dict[int, dict] = {
             "Checking assistant text content as a completion indicator",
             "Relying on prompt instructions alone for deterministic business-rule compliance",
             "Over-narrow task decomposition leading to incomplete coverage of broad research topics",
+            "Daisy-chaining full conversation logs between subagents — token costs scale exponentially with pipeline depth",
+            "Procedural micromanagement of subagents: step-by-step instructions prevent adaptation on emerging or unexpected topics",
         ],
     },
     2: {
@@ -140,12 +226,15 @@ DOMAINS: dict[int, dict] = {
             "MCP resources expose content catalogs to reduce exploratory tool calls",
             "Grep: content search (file contents); Glob: file path pattern matching; Edit: targeted modification",
             "Read + Write as fallback when Edit fails due to non-unique text matches",
+            "Broad monolithic custom tools cause LLM to default to built-ins (Grep, Bash); split into granular single-purpose tools",
+            "Application-side tool output filtering: extract only relevant fields from verbose API responses before they accumulate in context",
         ],
         "anti_patterns": [
             "Generic error responses ('Operation failed') that prevent intelligent recovery",
             "Silently suppressing errors (returning empty results as success)",
             "Giving synthesis agents access to web search tools (role bleed)",
             "Preferring built-in tools (Grep) over more capable MCP tools with weak descriptions",
+            "Providing a broad catch-all custom tool alongside capable built-ins — model will prefer built-ins when descriptions are weak",
         ],
     },
     3: {
@@ -175,6 +264,8 @@ DOMAINS: dict[int, dict] = {
             "Session context isolation: fresh Claude instance for PR review (not the code author's session)",
             "Concrete input/output examples > prose descriptions for transformation requirements",
             "Interview pattern: Claude asks questions before implementing in unfamiliar domains",
+            "Directed exploration: start with imports/base interfaces, then trace specific implementations; generate subtasks dynamically from findings",
+            "Session resumption with targeted context update: inform agent which specific files changed — avoid full re-read or ignoring changes",
         ],
         "anti_patterns": [
             "Placing team-wide instructions in user-level CLAUDE.md (teammates won't receive them)",
@@ -212,12 +303,17 @@ DOMAINS: dict[int, dict] = {
             "Independent review instances more effective than self-review for subtle issues",
             "Multi-pass review: per-file local passes + cross-file integration pass avoids attention dilution",
             "Nullable/optional fields prevent hallucination when information may be absent",
+            "Resilient enum schemas: add catch-all 'other' value + detail string field; avoids fragile enum expansion on every new edge case",
+            "Schema redundancy for mathematical consistency: capture both calculated_total and stated_total; flag for human review when they differ",
+            "Three-stage prompt evolution: base prompt → explicit null-for-absent instructions → few-shot format normalization examples",
+            "Routing tiers: urgent/blocking → real-time Messages API; standard async → Message Batches API (50% cost savings)",
         ],
         "anti_patterns": [
             "Using batch API for blocking workflows (pre-merge checks) — no latency SLA",
             "Relying on confidence-based filtering instead of explicit categorical criteria",
             "Running three full-PR review passes to require consensus (suppresses intermittent real bugs)",
             "Using tool_choice: 'auto' when you need guaranteed structured output",
+            "Continuously expanding enums as edge cases arise instead of using a catch-all 'other' value",
         ],
     },
     5: {
@@ -249,12 +345,16 @@ DOMAINS: dict[int, dict] = {
             "Field-level confidence scores calibrated using labeled validation sets",
             "Source attribution: preserve claim-source mappings through synthesis steps",
             "Conflicting statistics: annotate with source attribution rather than arbitrarily selecting one value",
+            "Stale tool_result filtering: on session resumption, remove prior tool_result messages to force fresh data fetch",
+            "Session compression: summarize resolved turns into a narrative; preserve full verbatim history only for the active unresolved issue",
+            "Application-layer intercept for zero-tolerance compliance: block tool calls server-side; remove model discretion for hard policy limits",
         ],
         "anti_patterns": [
             "Returning generic error status ('search unavailable') that hides context from coordinator",
             "Silently suppressing errors (returning empty results as success)",
             "Terminating entire workflow on single subagent failure",
             "Aggregate accuracy metrics (97% overall) masking poor performance on specific document types",
+            "Trusting emphatic system-prompt instructions for zero-tolerance limits — 3% failure rate persists even with 'CRITICAL: NEVER' phrasing",
         ],
     },
 }
@@ -570,6 +670,170 @@ SAMPLE_QUESTIONS: list[dict] = [
             "the system. Option C misunderstands that larger context windows don't solve attention quality "
             "issues. Option D would actually suppress detection of real bugs by requiring consensus on issues "
             "that may only be caught intermittently."
+        ),
+    },
+    # ── Additional questions derived from The Architect's Playbook ────────────
+    {
+        "scenario_id": 3,
+        "domain_id": 1,
+        "question": (
+            "Your multi-agent research pipeline processes 50 topics simultaneously. Each synthesis agent "
+            "receives the full conversation log of every prior web search agent run before it begins work. "
+            "After scaling to 50 concurrent topics, synthesis agent API costs have increased 40x relative "
+            "to the web search agents. What is the most likely cause and correct architectural fix?"
+        ),
+        "options": {
+            "A": "The synthesis agent's context window is too small; upgrade to a model with a larger context window to absorb the accumulated logs.",
+            "B": "Daisy-chaining full conversation logs between subagents scales token costs exponentially; have subagents index outputs into a shared vector store so synthesis agents retrieve only semantically relevant findings.",
+            "C": "The web search agent is returning too many results per query; add a hard cap of 10 results to reduce the volume passed downstream.",
+            "D": "The synthesis agent should summarize each web search result immediately upon receipt to prevent log accumulation.",
+        },
+        "correct": "B",
+        "explanation": (
+            "Passing full conversation logs between subagents causes token cost to grow exponentially as "
+            "each subsequent agent accumulates all prior agents' histories. The correct architectural pattern "
+            "is to decouple state from invocation: subagents write outputs to a shared vector store and "
+            "downstream agents retrieve only semantically relevant findings. This also prevents state loss on "
+            "pipeline crashes. Option A treats a scaling design problem as a model capability problem. "
+            "Option C reduces result quality without addressing the root cause. Option D requires each "
+            "subagent to summarize data it may not have full context to compress correctly."
+        ),
+    },
+    {
+        "scenario_id": 3,
+        "domain_id": 1,
+        "question": (
+            "Your document analysis pipeline must always extract metadata before calling a citation enrichment "
+            "tool (the enrichment tool requires the extracted DOI as an input parameter). In testing, the agent "
+            "occasionally calls the enrichment tool first, causing downstream failures. You have already added "
+            "a system prompt instruction 'Always call extract_metadata before lookup_citations.' The failures "
+            "persist at a 5% rate. What is the most reliable fix?"
+        ),
+        "options": {
+            "A": "Strengthen the system prompt instruction to 'CRITICAL: You MUST call extract_metadata before lookup_citations in every case, no exceptions.'",
+            "B": "Add 3-5 few-shot examples to the system prompt demonstrating the correct tool call order.",
+            "C": "Set tool_choice to force the extract_metadata tool on the first API call, guaranteeing metadata extraction happens before any enrichment call.",
+            "D": "Merge extract_metadata and lookup_citations into a single combined tool that enforces the internal ordering.",
+        },
+        "correct": "C",
+        "explanation": (
+            "When a specific execution order is required for correctness, the API's tool_choice constraint "
+            "provides deterministic enforcement — the model cannot skip or reorder the forced tool call. "
+            "Options A and B are both prompt-based approaches; the 5% failure rate demonstrates that prompt "
+            "instructions are insufficient for deterministic ordering requirements. Option D solves the "
+            "ordering problem but creates a monolithic tool that cannot be independently reused and fails "
+            "entirely if either component errors, rather than allowing partial recovery."
+        ),
+    },
+    {
+        "scenario_id": 1,
+        "domain_id": 5,
+        "question": (
+            "Your customer support agent handles multi-hour ticket resolutions. When a session resumes after "
+            "a 4-hour delay, agents tell customers 'your order is still in transit' based on a tool result "
+            "fetched hours ago — even though the order was delivered 2 hours ago. Adding a system prompt "
+            "instruction 'always re-verify order status on resumption' reduces but does not eliminate the "
+            "problem. What is the correct architectural fix?"
+        ),
+        "options": {
+            "A": "Summarize all previous tool results into a single status block at the top of the resumed session so the agent references only the summary.",
+            "B": "On session resumption, programmatically filter out all previous tool_result messages from the conversation history, forcing the agent to re-fetch current data when needed.",
+            "C": "Set a 30-minute TTL in the system prompt; instruct the agent to treat any tool result older than 30 minutes as expired.",
+            "D": "Restart the session from scratch on every resumption with only the customer ID, discarding prior conversation history.",
+        },
+        "correct": "B",
+        "explanation": (
+            "Filtering stale tool_result messages at the application layer is the architectural fix — it "
+            "removes the source of stale data rather than trying to instruct the model to ignore it. The "
+            "agent retains valuable human/assistant conversation turns (customer history, prior agreements) "
+            "while being forced to make fresh tool calls for any current state it needs. Option A risks "
+            "compressing stale data into the summary. Option C relies on prompt-based TTL enforcement, which "
+            "is probabilistic and already shown to be insufficient at 100%. Option D discards all valuable "
+            "prior context unnecessarily."
+        ),
+    },
+    {
+        "scenario_id": 6,
+        "domain_id": 4,
+        "question": (
+            "Your property document extraction system uses an enum schema for property_type: "
+            "['house', 'apartment', 'condo', 'townhouse']. After deployment, 8% of documents fail "
+            "validation with types like 'studio', 'converted warehouse', and 'live-work loft'. "
+            "Your team proposes continuously expanding the enum as new types are encountered. "
+            "What is the correct long-term architectural approach?"
+        ),
+        "options": {
+            "A": "Switch property_type from an enum to a free-text string field to eliminate all validation failures.",
+            "B": "Add a catch-all 'other' value to the enum paired with a property_type_detail string field, making the schema resilient to novel types without requiring ongoing expansion.",
+            "C": "Add a pre-processing classifier that normalizes any novel property type to the closest existing enum value before extraction.",
+            "D": "Increase the retry limit so the model attempts to remap novel types to the closest known enum value on each retry.",
+        },
+        "correct": "B",
+        "explanation": (
+            "Continuously expanding enums is a fragile anti-pattern — the schema breaks on every new edge "
+            "case encountered in production. The resilient pattern adds a catch-all 'other' value paired "
+            "with a detail string field: novel types are captured accurately rather than rejected or "
+            "incorrectly mapped, validation always passes, and the detail field preserves the original "
+            "value for downstream handling or human review. Option A loses the schema enforcement benefits "
+            "that structured extraction provides. Option C introduces a preprocessing step that silently "
+            "corrupts data semantics by forcing incorrect mappings. Option D has the same data corruption "
+            "problem as C and adds unnecessary latency."
+        ),
+    },
+    {
+        "scenario_id": 3,
+        "domain_id": 1,
+        "question": (
+            "Your coordinator agent provides its web search subagent with step-by-step instructions: "
+            "'Step 1: Search for X. Step 2: Open the top 3 results. Step 3: Extract the author and date.' "
+            "When researching an emerging topic with few established sources, the subagent exhausts all "
+            "three prescribed steps without finding useful content and stops, despite relevant material "
+            "being available through alternative search strategies. What is the root cause and correct fix?"
+        ),
+        "options": {
+            "A": "The subagent's context window is too small to hold multiple search results simultaneously; increase max_tokens.",
+            "B": "Procedural step-by-step instructions make subagents rigid; replace with goal-oriented delegation specifying research goals and quality criteria so the subagent can determine its own search strategy.",
+            "C": "The subagent needs access to additional search tools to cover alternative source types.",
+            "D": "Add a retry loop in the coordinator that re-invokes the subagent with different prescribed search terms when no results are found.",
+        },
+        "correct": "B",
+        "explanation": (
+            "Procedural micromanagement causes subagents to fail rigidly when their prescribed steps don't "
+            "match the search landscape — they have no latitude to adapt. Goal-oriented delegation "
+            "('find comprehensive coverage of X; prioritize recency and source diversity') lets the "
+            "specialized subagent determine its own search strategy, which is especially critical for "
+            "emerging topics where no fixed procedure works reliably. Option C adds tools without fixing "
+            "the rigidity. Option D adds retry infrastructure but continues to prescribe steps rather "
+            "than goals — the subagent will keep failing the same way with different search terms. "
+            "Option A misdiagnoses a strategy problem as a capacity problem."
+        ),
+    },
+    {
+        "scenario_id": 1,
+        "domain_id": 5,
+        "question": (
+            "After 48 turns covering three separate issues (a refund inquiry, a subscription question, "
+            "and an active payment dispute), your support agent starts showing context pressure: it "
+            "references the resolved refund case when answering questions about the payment dispute, "
+            "and loses track of the payment dispute details mid-conversation. The first two issues "
+            "are fully resolved. What is the correct context management strategy?"
+        ),
+        "options": {
+            "A": "Use /compact to compress the entire 48-turn conversation into a dense summary that the agent references going forward.",
+            "B": "Start a fresh session for the active payment dispute, providing only the customer ID as context.",
+            "C": "Summarize the resolved refund and subscription turns into a brief narrative description, while preserving the full verbatim message history for the active, unresolved payment dispute.",
+            "D": "Switch to a higher-tier model with a larger context window that can hold the entire 48-turn history without compression.",
+        },
+        "correct": "C",
+        "explanation": (
+            "Context compression should be surgical. Summarizing only the fully resolved turns frees "
+            "context space while preserving their key outcomes (e.g., 'refund approved for $120, "
+            "subscription downgraded to basic'). The active unresolved payment dispute retains its "
+            "full verbatim history so the agent can reason accurately about the current issue without "
+            "losing nuance. Option A applies uniform compression and risks losing critical details "
+            "in the active dispute. Option B discards all prior context including important customer "
+            "history from the resolved issues. Option D treats an architecture problem as a model "
+            "capability problem — larger context windows don't solve attention dilution."
         ),
     },
 ]

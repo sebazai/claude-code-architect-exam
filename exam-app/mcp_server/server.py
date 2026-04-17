@@ -6,7 +6,7 @@ host via MCP Sampling (ctx.sample()) — no ANTHROPIC_API_KEY required.
 
 Exam structure:
   - 60 questions · 120 minutes user-active time
-  - 4 scenarios randomly selected from 6
+  - 4 scenarios randomly selected from up to 13
   - 15 questions per scenario
   - Score 100–1,000  (passing ≥ 720)
 
@@ -60,6 +60,7 @@ This MCP server runs the Claude Certified Architect – Foundations practice exa
 
 EXAM RULES:
 • 60 questions across 4 randomly-selected scenarios (15 questions each)
+• Scenarios drawn from a pool of up to 13 (real exam may include scenarios outside the official guide's 6)
 • 120 minutes of user-active time (generation and evaluation time excluded)
 • Score 100–1,000; passing score ≥ 720
 • Multiple choice: select A, B, C, or D
@@ -188,7 +189,7 @@ async def _generate_question_with_retry(
 
 @mcp.resource("exam://scenarios")
 def resource_all_scenarios() -> str:
-    """Overview of all 6 available exam scenarios."""
+    """Overview of all available exam scenarios (up to 13 in the real exam pool)."""
     return json.dumps(
         [
             {"id": sid, "name": s["name"], "primary_domains": s["primary_domains"]}
@@ -240,7 +241,7 @@ async def start_exam() -> str:
     """
     Initialize a new exam session.
 
-    Randomly selects 4 of the 6 available scenarios and prepares
+    Randomly selects 4 of the available scenarios (pool of up to 13) and prepares
     60 question slots (15 per scenario). Returns the exam overview.
 
     Call this once before get_next_question.
