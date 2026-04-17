@@ -1,5 +1,7 @@
 """
-Question quality evaluation via MCP Sampling.
+Prompts and parsers for the exam generation → quality-evaluation loop.
+
+The MCP server invokes Claude via the ``claude`` CLI for each pass (see ``server.py``).
 
 Implements the validation-retry-with-feedback loop described in Domain 4
 (Task Statement 4.4: Implement validation, retry, and feedback loops).

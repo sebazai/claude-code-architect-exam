@@ -1,8 +1,10 @@
 """
 Claude Certified Architect – Foundations Exam MCP Server.
 
-Runs inside Claude Code. All LLM inference is delegated back to the Claude Code
-host via MCP Sampling (ctx.sample()) — no ANTHROPIC_API_KEY required.
+Runs inside Claude Code. Question generation and quality evaluation call the
+``claude`` CLI non-interactively (``claude -p`` with a system prompt) — no
+``ANTHROPIC_API_KEY`` in the MCP process. The Claude Code CLI must be on
+``PATH`` (the devcontainer installs it).
 
 Exam structure:
   - Full: 60 questions · 120 minutes user-active time · 4 scenarios × 15 questions
@@ -132,7 +134,7 @@ def _get_few_shot_examples(domain_id: int, n: int = 2) -> list[dict]:
 
 
 def _claude_cli(prompt: str, system_prompt: str) -> str:
-    """Fallback: call the claude CLI non-interactively when MCP sampling is unavailable."""
+    """Call the Claude Code ``claude`` CLI non-interactively for one completion."""
     result = subprocess.run(
         ["claude", "-p", prompt, "--system-prompt", system_prompt],
         capture_output=True,
@@ -146,8 +148,8 @@ def _claude_cli(prompt: str, system_prompt: str) -> str:
 
 
 async def _sample_text(_ctx: Context, prompt: str, system_prompt: str, _max_tokens: int) -> str:
-    """Generate text via claude CLI (MCP sampling not available in this environment)."""
-    return _claude_cli(prompt, system_prompt)
+    """Generate text via ``claude`` CLI; runs the subprocess in a thread pool to avoid blocking the event loop."""
+    return await asyncio.to_thread(_claude_cli, prompt, system_prompt)
 
 
 async def _sample_question(ctx: Context, prompt: str) -> dict:
@@ -443,7 +445,7 @@ async def start_exam_mini() -> str:
 @mcp.tool()
 async def get_next_question(ctx: Context) -> str:
     """
-    Generate the next exam question using MCP Sampling.
+    Generate the next exam question using the Claude CLI (generate → quality eval → retry).
 
     Internally runs an agentic quality-eval loop:
       generate → evaluate quality → retry-with-feedback if score < 3

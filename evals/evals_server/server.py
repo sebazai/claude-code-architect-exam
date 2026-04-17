@@ -2,7 +2,7 @@
 Evals MCP Server — runs inside Claude Code, no ANTHROPIC_API_KEY required.
 
 All LLM inference is delegated to the Claude Code host via MCP Sampling
-(ctx.sample()), mirroring the exam-app pattern.
+(ctx.sample()). The exam server uses the claude CLI instead; this server uses sampling.
 
 Available tools:
   list_eval_variants     — show the 3 prompt variants and their descriptions

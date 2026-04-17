@@ -52,7 +52,7 @@ These are recurring decision-making themes the exam tests:
 
 ## Exam Simulator App (`exam-app/`)
 
-An interactive MCP-based exam simulator that runs entirely inside Claude Code — no `ANTHROPIC_API_KEY` needed. All LLM inference is delegated to the Claude Code host via MCP Sampling (`ctx.sample()`).
+An interactive MCP-based exam simulator that runs entirely inside Claude Code — no `ANTHROPIC_API_KEY` needed. The exam server invokes the **Claude Code CLI** (`claude -p`) for generation and quality evaluation. The separate **evals** MCP server uses **MCP Sampling** (`ctx.sample()`) for prompt benchmarking tools.
 
 ### Running locally (requires `mcp[cli]>=1.6`)
 
@@ -90,9 +90,9 @@ exam-app/mcp_server/server.py   ← FastMCP server
 ```
 
 Key modules:
-- `exam_content.py` — all 6 scenarios, 5 domains, 12 sample Q&A (few-shot examples for generation prompts)
+- `exam_content.py` — scenario pool (13 scenarios; 6 match the official guide + 7 additional pool scenarios), 5 domains, 12 sample Q&A (few-shot examples for generation prompts)
 - `evals.py` — `GENERATION_TEMPLATE`, `QUALITY_EVAL_TEMPLATE`, retry-with-feedback loop (`QUALITY_THRESHOLD=3`, `MAX_RETRIES=2`)
-- `session.py` — in-memory `ExamSession`; user-active timer pauses during MCP generation/evaluation
+- `session.py` — in-memory `ExamSession`; user-active timer pauses while the server runs generation/quality-eval calls
 - `hooks.py` — `post_generate_hook` / `post_evaluate_hook` (mirrors Agent SDK PostToolUse pattern)
 - `scoring.py` — linear 100–1000 scale; passing ≥ 720
 

@@ -1,6 +1,6 @@
 # Claude Certified Architect – Foundations Practice Exam
 
-An interactive practice exam for the **Claude Certified Architect – Foundations** certification, running entirely inside Claude Code via MCP. No `ANTHROPIC_API_KEY` required — all question generation and evaluation is delegated to the Claude Code host through MCP Sampling.
+An interactive practice exam for the **Claude Certified Architect – Foundations** certification, running entirely inside Claude Code via MCP. No `ANTHROPIC_API_KEY` required in the server process — the **exam** MCP server calls the **Claude Code CLI** (`claude -p`) for each generation and quality-evaluation pass. The separate **evals** MCP server (prompt benchmarking) uses **MCP Sampling** (`ctx.sample()`).
 
 ## What This Is
 
@@ -23,7 +23,9 @@ A study tool that generates unique, scenario-grounded exam questions on demand. 
 
 ## Scenarios
 
-Questions are drawn from 4 of these 6 scenarios, selected randomly each session:
+Each session randomly selects **4 scenarios** from a **pool of 13**. The official exam guide lists 6; this repo includes those plus 7 additional scenarios aligned with the broader real-exam pool. See `exam-app/mcp_server/exam_content.py` (`SCENARIOS`) for names and descriptions.
+
+The six scenarios from the official guide are:
 
 1. Customer Support Resolution Agent
 2. Code Generation with Claude Code
@@ -56,12 +58,13 @@ The devcontainer bind-mounts `exam-app/.mcp.json` to `/workspace/.mcp.json`, so 
 
 ### Option 2 — Local
 
+Install both packages so every server in `.mcp.json` can start (the file registers the exam server and the evals server):
+
 ```bash
-cd exam-app
-pip install -e .
+pip install -e exam-app/ -e evals/
 ```
 
-Open Claude Code **from the `exam-app/` directory** (so it finds `exam-app/.mcp.json`), then:
+Open Claude Code from the **repository root** with `exam-app/.mcp.json` symlinked or copied to `.mcp.json`, **or** from `exam-app/` if that directory’s `.mcp.json` is the one Claude Code loads. Then:
 
 ```
 Start the Claude Certified Architect exam
@@ -83,8 +86,8 @@ Claude Code (host / MCP client)
 Question generation is an agentic loop:
 
 1. Build a prompt from the scenario description, domain concepts, anti-patterns, and 2 few-shot examples.
-2. Sample a question from Claude.
-3. Run a second sampling pass to score quality (1–5).
+2. Call the Claude CLI to generate a question.
+3. Run a second CLI pass to score quality (1–5).
 4. If score < 3, inject the evaluator's feedback into the prompt and retry (up to 2 retries).
 5. Accept the best result after retries are exhausted.
 
@@ -151,7 +154,7 @@ The `evals/` directory contains a prompt evaluation pipeline for the exam simula
 
 ### Two ways to run
 
-**Via MCP (no API key needed)** — uses Claude Code's MCP sampling, just like the exam server:
+**Via MCP (no API key needed)** — the evals MCP server uses `ctx.sample()` (not the same mechanism as the exam server, which uses the `claude` CLI):
 
 ```
 Run the generation eval for variant v2 with 5 cases
